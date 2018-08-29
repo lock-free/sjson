@@ -1,4 +1,4 @@
-package com.shopee.idata.sjson
+package io.github.shopee.idata.sjson
 
 case class User(name: String, email: String)
 case class Users(users: List[User])

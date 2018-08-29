@@ -1,4 +1,4 @@
-package com.shopee.idata.sjson
+package io.github.shopee.idata.sjson
 
 import scala.collection.mutable.ListBuffer
 

@@ -1,4 +1,4 @@
-package com.shopee.idata.sjson
+package io.github.shopee.idata.sjson
 
 class ParseTokenTest extends org.scalatest.FunSuite {
   test("parseTokens") {

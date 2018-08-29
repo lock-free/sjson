@@ -1,5 +1,5 @@
 name := "sjson"
-organization := "com.shopee.idata"
+organization := "io.github.shopee.idata"
 version := "0.1-SNAPSHOT"
 scalaVersion := "2.12.4"
 

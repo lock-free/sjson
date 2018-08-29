@@ -1,4 +1,4 @@
-package com.shopee.idata.sjson
+package io.github.shopee.idata.sjson
 
 class stringifyTest extends org.scalatest.FunSuite {
   test("stringify: string1") {

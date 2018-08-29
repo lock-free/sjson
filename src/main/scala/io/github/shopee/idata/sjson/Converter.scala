@@ -1,4 +1,4 @@
-package com.shopee.idata.sjson
+package io.github.shopee.idata.sjson
 
 import scala.reflect._
 import scala.reflect.runtime.universe._

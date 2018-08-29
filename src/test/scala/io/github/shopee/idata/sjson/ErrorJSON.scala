@@ -1,4 +1,4 @@
-package com.shopee.idata.sjson
+package io.github.shopee.idata.sjson
 
 class ErrorJSONTest extends org.scalatest.FunSuite {
   test("tokenParser: string end up with \\") {
