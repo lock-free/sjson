@@ -1,9 +1,12 @@
 name := "sjson"
-organization := "io.github.shopee.idata"
+organization := "io.github.idata-shopee"
 version := "0.1-SNAPSHOT"
 scalaVersion := "2.12.4"
 
+useGpg := true 
 parallelExecution in Test := true
+
+publishTo := sonatypePublishTo.value
 
 libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
