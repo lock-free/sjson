@@ -137,6 +137,7 @@ object JSONUtil {
   }
 
   private def escapedChar(ch: Char): String = ch match {
+    case x if !shouldEncoding(x) => x.toString()
     case '"'  => "\\\""
     case '\n' => "\\n"
     case '\\' => "\\\\"
@@ -144,11 +145,21 @@ object JSONUtil {
     case '\r' => "\\r"
     case '\b' => "\\b"
     case '\t' => "\\t"
-    case _ =>
-      if (ch.isControl)
-        // "\\0" + Integer.toOctalString(ch.toInt)
-        // above line will return chars such as "\034", which will fail at frontend, so just return "" instead
-        ""
-      else String.valueOf(ch)
+    // '\\u hex hex hex hex'
+    case x if x <= 0xF => s"\\u000${Integer.toHexString(x)}"
+    case x if x <= 0xFF => s"\\u00${Integer.toHexString(x)}"
+    case x if x <= 0xFFF => s"\\u0${Integer.toHexString(x)}"
+    case x => s"\\u${Integer.toHexString(x)}"
+  }
+
+  /**
+   * unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+   */
+  private def shouldEncoding(ch: Char): Boolean = {
+    ch match {
+      case '"' => true
+      case '\\' => true
+      case x => x < 0x20
+    }
   }
 }
