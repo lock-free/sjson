@@ -26,7 +26,24 @@ class stringifyTest extends org.scalatest.FunSuite {
 
   test("stringify: null and none") {
     assert(JSON.stringify(null) == "null")
+    assert(JSON.stringify(()) == "null")
     assert(JSON.stringify(None) == "null")
+  }
+
+  test("stringify: Timestamp") {
+    assert(JSON.stringify(new java.sql.Timestamp(1990 - 1900, 2, 12, 0, 0, 0, 0)) == "\"1990-03-12 00:00:00.0\"")
+  }
+
+  test("stringify: java.sql.time") {
+    assert(JSON.stringify(new java.sql.Time(11, 20, 3)) == "\"11:20:03\"")
+  }
+
+  test("stringify: java.sql.Date") {
+    assert(JSON.stringify(new java.sql.Date(1990 - 1900, 2, 12)) == "\"1990-03-12\"")
+  }
+
+  test("stringify: java.util.Date") {
+    assert(JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == "\"Mon Mar 12 00:00:00 GMT 1990\"")
   }
 
   test("stringify: map") {
@@ -100,4 +117,49 @@ class stringifyTest extends org.scalatest.FunSuite {
     )
   }
 
+  test("replacer") {
+    case class User(name: String, age: Int, login: java.util.Date)
+    val user = User("ddchen", 10, new java.util.Date(1990 - 1900, 2, 12))
+    assert(JSON.stringify(user, (data, path) => {
+      if(path.mkString(".") == "login") {
+        val date = data.asInstanceOf[java.util.Date]
+        Some(s""""${date.getYear() + 1900},${date.getMonth() + 1},${date.getDate()}"""")
+      } else {
+        None
+      }
+    }) === s"""{"name":"ddchen","age":10,"login":"1990,3,12"}""")
+  }
+
+  test("circle: base") {
+    val v1 = new Array[Any](3)
+    v1(0) = 1
+    v1(1) = 2
+    v1(2) = v1
+    try {
+      JSON.stringify(v1)
+      assert(false)
+    } catch {
+      case e: Exception => {
+        assert(e.getMessage.indexOf("circle detected") != -1)
+      }
+    }
+  }
+
+  test("circle2: deeper") {
+    val v1 = new Array[Any](2)
+    val v2 = Map(
+      "a" -> v1
+    )
+
+    v1(0) = 1
+    v1(1) = v2
+    try {
+      JSON.stringify(v1)
+      assert(false)
+    } catch {
+      case e: Exception => {
+        assert(e.getMessage.indexOf("circle detected") != -1)
+      }
+    }
+  }
 }

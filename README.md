@@ -6,4 +6,8 @@ JSON library for Scala
 
 - Automatic type converting
 
+- support customization converting
+
 - Streaming support (TODO)
+
+## quick example

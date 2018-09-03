@@ -40,7 +40,7 @@ class ParseTest extends org.scalatest.FunSuite {
 
   def revert[T: TypeTag](value: T) = {
     val txt = JSON.stringify(value)
-    val ret = JSONConverter.convert[T](JSON.parse(txt))
+    val ret = JSON.parseTo[T](txt)
     assert(ret == value)
   }
 
