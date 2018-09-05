@@ -3,10 +3,10 @@
 JSON library for Scala
 
 JSON specification:
-http://json.org/
-https://www.ietf.org/rfc/rfc4627.txt
+- http://json.org/
+- https://www.ietf.org/rfc/rfc4627.txt
 
-## features
+## Features
 
 - Automatic type converting
 
@@ -14,9 +14,9 @@ https://www.ietf.org/rfc/rfc4627.txt
 
 - Streaming support (TODO)
 
-## quick example
+## Quick example
 
-```
+```scala
 import io.github.shopee.idata.sjson.JSON
 
 JSON.stringify(List(1,2,3)) // [1,2,3]
@@ -28,3 +28,5 @@ JSON.stringify(Map(
 case class User(name: String, age: Int)
 JSON.stringify(User("NoName", 7)) // {"name": "NoName", age: 7}
 ```
+
+## Install

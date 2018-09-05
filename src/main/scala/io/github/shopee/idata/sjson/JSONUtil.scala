@@ -138,28 +138,27 @@ object JSONUtil {
 
   private def escapedChar(ch: Char): String = ch match {
     case x if !shouldEncoding(x) => x.toString()
-    case '"'  => "\\\""
-    case '\n' => "\\n"
-    case '\\' => "\\\\"
-    case '\f' => "\\f"
-    case '\r' => "\\r"
-    case '\b' => "\\b"
-    case '\t' => "\\t"
+    case '"'                     => "\\\""
+    case '\n'                    => "\\n"
+    case '\\'                    => "\\\\"
+    case '\f'                    => "\\f"
+    case '\r'                    => "\\r"
+    case '\b'                    => "\\b"
+    case '\t'                    => "\\t"
     // '\\u hex hex hex hex'
-    case x if x <= 0xF => s"\\u000${Integer.toHexString(x)}"
-    case x if x <= 0xFF => s"\\u00${Integer.toHexString(x)}"
+    case x if x <= 0xF   => s"\\u000${Integer.toHexString(x)}"
+    case x if x <= 0xFF  => s"\\u00${Integer.toHexString(x)}"
     case x if x <= 0xFFF => s"\\u0${Integer.toHexString(x)}"
-    case x => s"\\u${Integer.toHexString(x)}"
+    case x               => s"\\u${Integer.toHexString(x)}"
   }
 
   /**
-   * unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
-   */
-  private def shouldEncoding(ch: Char): Boolean = {
+    * unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+    */
+  private def shouldEncoding(ch: Char): Boolean =
     ch match {
-      case '"' => true
+      case '"'  => true
       case '\\' => true
-      case x => x < 0x20
+      case x    => x < 0x20
     }
-  }
 }

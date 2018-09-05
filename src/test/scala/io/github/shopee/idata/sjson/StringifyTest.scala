@@ -31,7 +31,9 @@ class stringifyTest extends org.scalatest.FunSuite {
   }
 
   test("stringify: Timestamp") {
-    assert(JSON.stringify(new java.sql.Timestamp(1990 - 1900, 2, 12, 0, 0, 0, 0)) == "\"1990-03-12 00:00:00.0\"")
+    assert(
+      JSON.stringify(new java.sql.Timestamp(1990 - 1900, 2, 12, 0, 0, 0, 0)) == "\"1990-03-12 00:00:00.0\""
+    )
   }
 
   test("stringify: java.sql.time") {
@@ -43,7 +45,9 @@ class stringifyTest extends org.scalatest.FunSuite {
   }
 
   test("stringify: java.util.Date") {
-    assert(JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == "\"Mon Mar 12 00:00:00 GMT 1990\"")
+    assert(
+      JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == "\"Mon Mar 12 00:00:00 GMT 1990\""
+    )
   }
 
   test("stringify: map") {
@@ -120,14 +124,19 @@ class stringifyTest extends org.scalatest.FunSuite {
   test("replacer") {
     case class User(name: String, age: Int, login: java.util.Date)
     val user = User("ddchen", 10, new java.util.Date(1990 - 1900, 2, 12))
-    assert(JSON.stringify(user, (data, path) => {
-      if(path.mkString(".") == "login") {
-        val date = data.asInstanceOf[java.util.Date]
-        Some(s""""${date.getYear() + 1900},${date.getMonth() + 1},${date.getDate()}"""")
-      } else {
-        None
-      }
-    }) === s"""{"name":"ddchen","age":10,"login":"1990,3,12"}""")
+    assert(
+      JSON.stringify(
+        user,
+        (data, path) => {
+          if (path.mkString(".") == "login") {
+            val date = data.asInstanceOf[java.util.Date]
+            Some(s""""${date.getYear() + 1900},${date.getMonth() + 1},${date.getDate()}"""")
+          } else {
+            None
+          }
+        }
+      ) === s"""{"name":"ddchen","age":10,"login":"1990,3,12"}"""
+    )
   }
 
   test("circle: base") {

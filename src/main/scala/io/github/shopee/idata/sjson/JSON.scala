@@ -40,6 +40,9 @@ object JSON {
   def parseTo[T: TypeTag](jsonTxt: String) =
     convert[T](parse(jsonTxt))
 
-  def stringify(obj: Any, replacer: Stringify.StringifyReplacer = Stringify.defaultStringifyReplacer): String =
+  def stringify(
+      obj: Any,
+      replacer: Stringify.StringifyReplacer = Stringify.defaultStringifyReplacer
+  ): String =
     Stringify.stringify(obj, replacer)
 }
