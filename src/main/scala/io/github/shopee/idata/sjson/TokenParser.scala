@@ -300,25 +300,31 @@ object TokenParser {
     tokensBuilder.toList
   }
 
-  def getTokens(iter: AsyncIterator[Char],
-                onToken: (JSONToken) => Unit,
-                errorCallback: AsyncIterator.ErrorCallback = null) = {
-    var parseToken = new ParseToken(onToken)
-    var lastIndex  = 0
+  def toTokenAsyncIterator(iter: AsyncIterator[Char]): AsyncIterator[JSONToken] = {
+    val tokenIter = new AsyncIterator[JSONToken]()
+
+    var parseToken = new ParseToken((token) => {
+      tokenIter.push(token)
+    })
 
     iter.forEach(
-      (ch, i) => {
-        lastIndex = i
+      itemHandler = (ch, i) => {
         var trans = parseToken.transist(ch, i)
         while (trans.isEpsilon) {
           trans = parseToken.transist(ch, i)
         }
       },
-      ResultCallback[Null](
-        errorCallback = errorCallback
+      resultCallback = ResultCallback[Null](
+        endCallback = (prev) => {
+          parseToken.transistEnd(iter.getIndex() - 1)
+          tokenIter.end()
+        },
+        errorCallback = (err) => {
+          tokenIter.error(err)
+        }
       )
     )
 
-    parseToken.transistEnd(lastIndex)
+    tokenIter
   }
 }

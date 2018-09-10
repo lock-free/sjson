@@ -62,11 +62,12 @@ class AsyncIterator[T]() {
   }
 
   def pushList(items: List[T]) {
-    for(item <- items) push(item)
+    for (item <- items) push(item)
   }
 
   def end() {
     state = AsyncIterator.END
+    index += 1
     if (nextHandler != null) {
       val oldNextHandler = nextHandler
       nextHandler = null
@@ -164,4 +165,6 @@ class AsyncIterator[T]() {
       ListBuffer[T]()
     )
   }
+
+  def getIndex() = index
 }

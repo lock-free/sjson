@@ -10,13 +10,18 @@ class TokenParseTest extends org.scalatest.FunSuite {
     val iter = new AsyncIterator[Char]()
     iter.pushList(txt.toList)
 
+    val tokenIter = TokenParser.toTokenAsyncIterator(iter)
+
     val tokens = ListBuffer[JSONToken]()
-    TokenParser.getTokens(iter, (token) => {
+
+    tokenIter.forEach((token, i) => {
       tokens.append(token)
     })
 
+    iter.end()
     assert(tokens == expect)
   }
+
   test("toTokens: single number") {
     List("1.23e1", "1234", "0", "-0", "-123", "0.23", "-0.23", "1.23", "1.23e-1", "1.23e-123").map((txt) => {
       testToToken(txt, List(JSONToken(JSONToken.NUMBER, txt)))
