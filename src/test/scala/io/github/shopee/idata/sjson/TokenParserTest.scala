@@ -1,35 +1,44 @@
 package io.github.shopee.idata.sjson
 
+import scala.collection.mutable.ListBuffer
+
 class TokenParseTest extends org.scalatest.FunSuite {
+  private def testToToken(txt: String, expect: List[JSONToken]) = {
+    assert(TokenParser.toTokens(txt) == expect)
+
+    // test async iterator mode
+    val iter = new AsyncIterator[Char]()
+    iter.pushList(txt.toList)
+
+    val tokens = ListBuffer[JSONToken]()
+    TokenParser.getTokens(iter, (token) => {
+      tokens.append(token)
+    })
+
+    assert(tokens == expect)
+  }
   test("toTokens: single number") {
-    assert(TokenParser.toTokens("1234") == List(JSONToken(JSONToken.NUMBER, "1234")))
-    assert(TokenParser.toTokens("0") == List(JSONToken(JSONToken.NUMBER, "0")))
-    assert(TokenParser.toTokens("0.23") == List(JSONToken(JSONToken.NUMBER, "0.23")))
-    assert(TokenParser.toTokens("1.23") == List(JSONToken(JSONToken.NUMBER, "1.23")))
-    assert(TokenParser.toTokens("1.23e1") == List(JSONToken(JSONToken.NUMBER, "1.23e1")))
-    assert(TokenParser.toTokens("1.23e-1") == List(JSONToken(JSONToken.NUMBER, "1.23e-1")))
+    List("1.23e1", "1234", "0", "-0", "-123", "0.23", "-0.23", "1.23", "1.23e-1", "1.23e-123").map((txt) => {
+      testToToken(txt, List(JSONToken(JSONToken.NUMBER, txt)))
+    })
   }
 
   test("toTokens: single string") {
-    assert(TokenParser.toTokens(s"""""""") == List(JSONToken(JSONToken.STRING, s"""""""")))
-    assert(TokenParser.toTokens(s""""hello, world"""") == List(JSONToken(JSONToken.STRING, s""""hello, world"""")))
-    assert(TokenParser.toTokens(s""""123"""") == List(JSONToken(JSONToken.STRING, s""""123"""")))
-    assert(TokenParser.toTokens(s""""\\""""") == List(JSONToken(JSONToken.STRING, s""""\\""""")))
-    assert(TokenParser.toTokens(s""""\n"""") == List(JSONToken(JSONToken.STRING, s""""\n"""")))
-    assert(TokenParser.toTokens(s""""\t"""") == List(JSONToken(JSONToken.STRING, s""""\t"""")))
-    assert(TokenParser.toTokens(s""""\\\\"""") == List(JSONToken(JSONToken.STRING, s""""\\\\"""")))
+    List(s"""""""", s""""hello, world"""", s""""123"""", s""""\\""""", s""""\n"""", s""""\t"""", s""""\\\\"""").map((txt) => {
+      testToToken(txt, List(JSONToken(JSONToken.STRING, txt)))
+    })
   }
 
   test("toTokens: true,false,null") {
-    assert(TokenParser.toTokens("true") == List(JSONToken(JSONToken.TRUE, "true")))
-    assert(TokenParser.toTokens("false") == List(JSONToken(JSONToken.FALSE, "false")))
-    assert(TokenParser.toTokens("null") == List(JSONToken(JSONToken.NULL, "null")))
+    testToToken("true", List(JSONToken(JSONToken.TRUE, "true")))
+    testToToken("false", List(JSONToken(JSONToken.FALSE, "false")))
+    testToToken("null", List(JSONToken(JSONToken.NULL, "null")))
   }
 
   test("toTokens: array") {
-    assert(TokenParser.toTokens("[]") == List(JSONToken(JSONToken.LEFT_PARAN, "[", 0), JSONToken(JSONToken.RIGHT_PARAN, "]", 1)))
-    assert(TokenParser.toTokens("[1234]") == List(JSONToken(JSONToken.LEFT_PARAN, "[", 0), JSONToken(JSONToken.NUMBER, "1234", 1), JSONToken(JSONToken.RIGHT_PARAN, "]", 5)))
-    assert(TokenParser.toTokens("[1234, true]") == List(JSONToken(JSONToken.LEFT_PARAN, "[", 0),
+    testToToken("[]", List(JSONToken(JSONToken.LEFT_PARAN, "[", 0), JSONToken(JSONToken.RIGHT_PARAN, "]", 1)))
+    testToToken("[1234]", List(JSONToken(JSONToken.LEFT_PARAN, "[", 0), JSONToken(JSONToken.NUMBER, "1234", 1), JSONToken(JSONToken.RIGHT_PARAN, "]", 5)))
+    testToToken("[1234, true]", List(JSONToken(JSONToken.LEFT_PARAN, "[", 0),
       JSONToken(JSONToken.NUMBER, "1234", 1),
       JSONToken(JSONToken.COMMA, ",", 5),
       JSONToken(JSONToken.TRUE, "true", 7),
@@ -37,13 +46,13 @@ class TokenParseTest extends org.scalatest.FunSuite {
   }
 
   test("toTokens: object") {
-    assert(TokenParser.toTokens("{}") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 1)))
-    assert(TokenParser.toTokens(s"""{"a": 1}""") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), 
+    testToToken("{}", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 1)))
+    testToToken(s"""{"a": 1}""", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), 
       JSONToken(JSONToken.STRING, "\"a\"", 1),
       JSONToken(JSONToken.COLON, ":", 4),
       JSONToken(JSONToken.NUMBER, "1", 6),
       JSONToken(JSONToken.RIGHT_BRACKET, "}", 7)))
-    assert(TokenParser.toTokens(s"""{"a": 1, "b": null}""") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), 
+    testToToken(s"""{"a": 1, "b": null}""", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), 
       JSONToken(JSONToken.STRING, "\"a\"", 1),
       JSONToken(JSONToken.COLON, ":", 4),
       JSONToken(JSONToken.NUMBER, "1", 6),
@@ -55,10 +64,10 @@ class TokenParseTest extends org.scalatest.FunSuite {
   }
 
   test("toTokens: whitespace") {
-    assert(TokenParser.toTokens("{ }") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 2)))
-    assert(TokenParser.toTokens("{ \f}") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 3)))
-    assert(TokenParser.toTokens(s"""{
-    }""") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 6)))
-assert(TokenParser.toTokens(s"""{        }""") == List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 9)))
+    testToToken("{ }", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 2)))
+    testToToken("{ \f}", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 3)))
+    testToToken(s"""{
+    }""", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 6)))
+    testToToken(s"""{        }""", List(JSONToken(JSONToken.LEFT_BRACKET, "{", 0), JSONToken(JSONToken.RIGHT_BRACKET, "}", 9)))
   }
 }

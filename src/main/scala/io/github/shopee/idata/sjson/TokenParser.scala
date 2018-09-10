@@ -22,175 +22,303 @@ object JSONToken {
   val COLON = 10 // :
 }
 
+case class Transition(nextState: Int, isEpsilon: Boolean = false)
+
+object TransitionState {
+  // states
+  val NEW = 0
+
+  val NULL_N = 1
+  val NULL_U = 2
+  val NULL_L = 3
+
+  val TRUE_T = 4
+  val TRUE_R = 5
+  val TRUE_U = 6
+
+  val FALSE_F = 7
+  val FALSE_A = 8
+  val FALSE_L = 9
+  val FALSE_S = 10
+
+  val STRING_IN     = 11
+  val STRING_ESCAPE = 12
+
+  val NUMBER_INTEGER          = 13
+  val NUMBER_FRAGMENT_INTEGER = 14
+  val NUMBER_SCIENCE_PART     = 15
+  val NUMBER_SCIENCE_INTEGER  = 16
+
+  // transitions
+  val NEW_TRANS                      = Transition(NEW)
+  val NEW_TRANS_E                    = Transition(NEW, true)
+  val NULL_N_TRANS                   = Transition(NULL_N)
+  val NULL_U_TRANS                   = Transition(NULL_U)
+  val NULL_L_TRANS                   = Transition(NULL_L)
+  val TRUE_T_TRANS                   = Transition(TRUE_T)
+  val TRUE_R_TRANS                   = Transition(TRUE_R)
+  val TRUE_U_TRANS                   = Transition(TRUE_U)
+  val FALSE_F_TRANS                  = Transition(FALSE_F)
+  val FALSE_A_TRANS                  = Transition(FALSE_A)
+  val FALSE_L_TRANS                  = Transition(FALSE_L)
+  val FALSE_S_TRANS                  = Transition(FALSE_S)
+  val STRING_ESCAPE_TRANS            = Transition(STRING_ESCAPE)
+  val STRING_IN_TRANS                = Transition(STRING_IN)
+  val NUMBER_INTEGER_TRANS           = Transition(NUMBER_INTEGER)
+  val NUMBER_SCIENCE_INTEGER_TRANS   = Transition(NUMBER_SCIENCE_INTEGER)
+  val NUMBER_SCIENCE_INTEGER_TRANS_E = Transition(NUMBER_SCIENCE_INTEGER, true)
+  val NUMBER_FRAGMENT_INTEGER_TRANS  = Transition(NUMBER_FRAGMENT_INTEGER)
+  val NUMBER_SCIENCE_PART_TRANS      = Transition(NUMBER_SCIENCE_PART)
+}
+
+class ParseToken(onTokenCallback: (JSONToken) => Unit) {
+  import TransitionState._
+
+  val txtBuilder = new StringBuilder // use txt builder to collect text
+  var strClosed  = false
+  var state: Int = NEW
+
+  /**
+    * change current state by ch
+    */
+  def transist(ch: Char, i: Int): Transition = {
+    val transis = state match {
+      // null
+      case NULL_N => if (ch == 'u') NULL_U_TRANS else throwParseErr(ch, i)
+      case NULL_U => if (ch == 'l') NULL_L_TRANS else throwParseErr(ch, i)
+      case NULL_L => {
+        if (ch == 'l') {
+          onToken(JSONToken(JSONToken.NULL, "null", i - 3))
+        } else throwParseErr(ch, i)
+      }
+      // true
+      case TRUE_T => if (ch == 'r') TRUE_R_TRANS else throwParseErr(ch, i)
+      case TRUE_R => if (ch == 'u') TRUE_U_TRANS else throwParseErr(ch, i)
+      case TRUE_U => {
+        if (ch == 'e') {
+          onToken(JSONToken(JSONToken.TRUE, "true", i - 3))
+        } else {
+          throwParseErr(ch, i)
+        }
+      }
+      // false
+      case FALSE_F => if (ch == 'a') FALSE_A_TRANS else throwParseErr(ch, i)
+      case FALSE_A => if (ch == 'l') FALSE_L_TRANS else throwParseErr(ch, i)
+      case FALSE_L => if (ch == 's') FALSE_S_TRANS else throwParseErr(ch, i)
+      case FALSE_S => {
+        if (ch == 'e') {
+          onToken(JSONToken(JSONToken.FALSE, "false", i - 4))
+        } else throwParseErr(ch, i)
+      }
+
+      case STRING_IN => {
+        if (ch == '\\') {
+          txtBuilder.append(ch)
+          STRING_ESCAPE_TRANS
+        } else if (ch == '"') {
+          strClosed = true
+          txtBuilder.append('"')
+          onToken(JSONToken(JSONToken.STRING, txtBuilder.toString(), i + 1 - txtBuilder.length))
+        } else {
+          txtBuilder.append(ch)
+          STRING_IN_TRANS
+        }
+      }
+
+      case STRING_ESCAPE => {
+        txtBuilder.append(ch)
+        STRING_IN_TRANS
+      }
+
+      case NUMBER_INTEGER => {
+        // integer part, 01234
+        if (ch >= '0' && ch <= '9') {
+          txtBuilder.append(ch)
+          NUMBER_INTEGER_TRANS
+        } else {
+          // fragment part, .01234
+          if (ch == '.') {
+            txtBuilder.append(ch)
+            NUMBER_FRAGMENT_INTEGER_TRANS
+          } else if (ch == 'e' || ch == 'E') {
+            txtBuilder.append(ch)
+            NUMBER_SCIENCE_PART_TRANS
+          } else {
+            val numberText = txtBuilder.toString()
+            onToken(JSONToken(JSONToken.NUMBER, numberText, i - numberText.length), true)
+          }
+        }
+      }
+
+      case NUMBER_FRAGMENT_INTEGER => {
+        // integers
+        if (ch >= '0' && ch <= '9') {
+          txtBuilder.append(ch)
+          NUMBER_FRAGMENT_INTEGER_TRANS
+        } else {
+          if (ch == 'e' || ch == 'E') {
+            txtBuilder.append(ch)
+            NUMBER_SCIENCE_PART_TRANS
+          } else {
+            val numberText = txtBuilder.toString()
+            onToken(JSONToken(JSONToken.NUMBER, numberText, i - numberText.length), true)
+          }
+        }
+      }
+
+      case NUMBER_SCIENCE_PART => {
+        if (ch == '+' || ch == '-') {
+          txtBuilder.append(ch)
+          NUMBER_SCIENCE_PART_TRANS
+        } else if (ch >= '0' && ch <= '9') {
+          NUMBER_SCIENCE_INTEGER_TRANS_E
+        } else {
+          throw new Exception(s"expect number after '+', but got ${ch}")
+        }
+      }
+
+      case NUMBER_SCIENCE_INTEGER => {
+        if (ch >= '0' && ch <= '9') {
+          txtBuilder.append(ch)
+          NUMBER_SCIENCE_INTEGER_TRANS
+        } else {
+          val numberText = txtBuilder.toString()
+          if (numberText == "-") {
+            throw new Exception(tokenParseError(ch, i, "expect number after '-'"))
+          }
+
+          onToken(JSONToken(JSONToken.NUMBER, numberText, i - 1 - numberText.length), true)
+        }
+      }
+
+      case NEW => {
+        ch match {
+          case '{'  => singleChToken(JSONToken.LEFT_BRACKET, ch, i)
+          case '}'  => singleChToken(JSONToken.RIGHT_BRACKET, ch, i)
+          case '['  => singleChToken(JSONToken.LEFT_PARAN, ch, i)
+          case ']'  => singleChToken(JSONToken.RIGHT_PARAN, ch, i)
+          case ','  => singleChToken(JSONToken.COMMA, ch, i)
+          case ':'  => singleChToken(JSONToken.COLON, ch, i)
+          case ' '  => NEW_TRANS // white space
+          case '\t' => NEW_TRANS // white space
+          case '\r' => NEW_TRANS // white space
+          case '\n' => NEW_TRANS // white space
+          case '\f' => NEW_TRANS // white space
+          case '\b' => NEW_TRANS // white space
+
+          case _ if (ch == 't') => TRUE_T_TRANS
+          case _ if (ch == 'f') => FALSE_F_TRANS
+          case _ if (ch == 'n') => NULL_N_TRANS
+
+          case '"' => {
+            txtBuilder.setLength(0)
+            strClosed = false
+            txtBuilder.append("\"")
+            STRING_IN_TRANS
+          }
+
+          case _ if (ch == '-' || (ch >= '0' && ch <= '9')) => {
+            txtBuilder.setLength(0)
+            txtBuilder.append(ch)
+            NUMBER_INTEGER_TRANS
+          }
+
+          case _ =>
+            throw new Exception(
+              tokenParseError(
+                ch,
+                i,
+                s"unrecorgnized symbol '$ch', the int value of char is ${ch.toInt}. Current state is ${state}"
+              )
+            )
+        }
+      }
+    }
+    state = transis.nextState
+    transis
+  }
+
+  def transistEnd(location: Int) =
+    // at last
+    if (state == NUMBER_INTEGER || state == NUMBER_FRAGMENT_INTEGER || state == NUMBER_SCIENCE_INTEGER) {
+      val numberText = txtBuilder.toString()
+      if (numberText == "-") {
+        throw new Exception("expect number after '-'")
+      }
+
+      val token = JSONToken(JSONToken.NUMBER, numberText, 1 + location - numberText.length)
+      onToken(token)
+    } else if (state != NEW) {
+      throw new Exception(
+        s"parse error at last, current state is ${state}. Current text buffer is ${txtBuilder.toString()}."
+      )
+    }
+
+  private def singleChToken(t: Int, ch: Char, i: Int): Transition =
+    onToken(JSONToken(t, ch + "", i))
+
+  private def onToken(token: JSONToken, isEpsilon: Boolean = false): Transition = {
+    onTokenCallback(token)
+    if (isEpsilon) {
+      NEW_TRANS_E
+    } else {
+      NEW_TRANS
+    }
+  }
+
+  private def throwParseErr(ch: Char, location: Int) =
+    throw new Exception(
+      tokenParseError(ch,
+                      location,
+                      s"unrecorgnized symbol '$ch', the int value of char is ${ch.toInt}.")
+    )
+
+  private def tokenParseError(ch: Char, location: Int, errorMessage: String): String =
+    s"""[${location}]${errorMessage}. Error happened nearby '${ch}'."""
+}
+
 object TokenParser {
   def toTokens(jsonTxt: String): List[JSONToken] = {
+    var i             = 0
+    val jsonTxtLen    = jsonTxt.length
     val tokensBuilder = ListBuffer[JSONToken]()
-    val jsonTxtLen    = jsonTxt.length;
 
-    var i = 0
+    var parseToken = new ParseToken((token) => {
+      tokensBuilder.append(token)
+    })
+
     while (i < jsonTxtLen) {
-      val token = getToken(jsonTxt, jsonTxtLen, i)
-      if (token != null) {
-        tokensBuilder.append(token)
-        i += token.text.length // move i
-      } else { // ignore
+      val ch    = jsonTxt(i)
+      val trans = parseToken.transist(ch, i)
+      if (!trans.isEpsilon) {
         i += 1
       }
     }
 
+    parseToken.transistEnd(i - 1)
+
     tokensBuilder.toList
   }
 
-  private def getToken(jsonTxt: String, jsonTxtLen: Int, i: Int): JSONToken = {
-    val ch = jsonTxt(i)
-    ch match {
-      case '{'                                          => JSONToken(JSONToken.LEFT_BRACKET, ch + "", i)
-      case '}'                                          => JSONToken(JSONToken.RIGHT_BRACKET, ch + "", i)
-      case '['                                          => JSONToken(JSONToken.LEFT_PARAN, ch + "", i)
-      case ']'                                          => JSONToken(JSONToken.RIGHT_PARAN, ch + "", i)
-      case ','                                          => JSONToken(JSONToken.COMMA, ch + "", i)
-      case ':'                                          => JSONToken(JSONToken.COLON, ch + "", i)
-      case ' '                                          => null // white space
-      case '\t'                                         => null // white space
-      case '\r'                                         => null // white space
-      case '\n'                                         => null // white space
-      case '\f'                                         => null // white space
-      case '\b'                                         => null // white space
-      case '"'                                          => getStringToken(jsonTxt, jsonTxtLen, i)
-      case _ if (ch == '-' || (ch >= '0' && ch <= '9')) => getNumberToken(jsonTxt, jsonTxtLen, i)
-      case _ if (i + 3 < jsonTxtLen && jsonTxt.substring(i, i + 4) == "true") =>
-        JSONToken(JSONToken.TRUE, "true", i)
-      case _ if (i + 4 < jsonTxtLen && jsonTxt.substring(i, i + 5) == "false") =>
-        JSONToken(JSONToken.FALSE, "false", i)
-      case _ if (i + 3 < jsonTxtLen && jsonTxt.substring(i, i + 4) == "null") =>
-        JSONToken(JSONToken.NULL, "null", i)
+  def getTokens(iter: AsyncIterator[Char],
+                onToken: (JSONToken) => Unit,
+                errorCallback: AsyncIterator.ErrorCallback = null) = {
+    var parseToken = new ParseToken(onToken)
+    var lastIndex  = 0
 
-      case _ =>
-        throw new Exception(
-          tokenParseError(
-            jsonTxt,
-            i,
-            s"unrecorgnized symbol '$ch', the int value of char is ${ch.toInt}."
-          )
-        )
-    }
-  }
-
-  private def getNumberToken(jsonTxt: String, jsonTxtLen: Int, i: Int): JSONToken = {
-    val ch = jsonTxt(i)
-    var j  = i
-
-    val numberBuilder = new StringBuilder
-    // negative symbol, -
-    if (ch == '-') {
-      numberBuilder.append(ch)
-      j += 1
-    }
-
-    // integer part, 01234
-    while (j < jsonTxtLen && jsonTxt(j) >= '0' && jsonTxt(j) <= '9') {
-      numberBuilder.append(jsonTxt(j))
-      j += 1
-    }
-
-    // fragment part, .01234
-    if (j < jsonTxt.length && jsonTxt(j) == '.') {
-      numberBuilder.append(jsonTxt(j))
-      j += 1
-
-      while (j < jsonTxtLen && jsonTxt(j) >= '0' && jsonTxt(j) <= '9') {
-        numberBuilder.append(jsonTxt(j))
-        j += 1
-      }
-    }
-
-    // science part
-    if (j < jsonTxtLen && (jsonTxt(j) == 'e' || jsonTxt(j) == 'E')) {
-      numberBuilder.append(jsonTxt(j))
-      j += 1
-
-      if (j < jsonTxtLen && (jsonTxt(j) == '+' || jsonTxt(j) == '-')) {
-        numberBuilder.append(jsonTxt(j))
-        j += 1
-      }
-
-      while (j < jsonTxtLen && (jsonTxt(j) >= '0' && jsonTxt(j) <= '9')) {
-        numberBuilder.append(jsonTxt(j))
-        j += 1
-      }
-    }
-
-    val numberText = numberBuilder.toString()
-    if (numberText == "-") {
-      throw new Exception(tokenParseError(jsonTxt, j, "expect number after '-'"))
-    }
-
-    JSONToken(JSONToken.NUMBER, numberText, i)
-  }
-
-  /**
-    *string = quotation-mark *char quotation-mark
-    *char = unescaped /
-    *       escape (
-    *           %x22 /          ; "    quotation mark  U+0022
-    *           %x5C /          ; \    reverse solidus U+005C
-    *           %x2F /          ; /    solidus         U+002F
-    *           %x62 /          ; b    backspace       U+0008
-    *           %x66 /          ; f    form feed       U+000C
-    *           %x6E /          ; n    line feed       U+000A
-    *           %x72 /          ; r    carriage return U+000D
-    *           %x74 /          ; t    tab             U+0009
-    *           %x75 4HEXDIG )  ; uXXXX                U+XXXX
-    *
-    *escape = %x5C              ; \
-    *
-    *quotation-mark = %x22      ; "
-    *
-    *unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
-    */
-  private def getStringToken(jsonTxt: String, jsonTxtLen: Int, i: Int): JSONToken = {
-    val txtBuilder = new StringBuilder // use txt builder to collect text
-    txtBuilder.append("\"")
-    var j      = i + 1
-    var closed = false
-
-    // try to find another " with out escaped
-    while (j < jsonTxtLen && !closed) {
-      // TODO make this stronger
-      // http://json.org
-      if (jsonTxt(j) == '\\') {
-        if (j + 2 > jsonTxtLen) {
-          throw new Exception(tokenParseError(jsonTxt, j, "text should not end up with \\."))
+    iter.forEach(
+      (ch, i) => {
+        lastIndex = i
+        var trans = parseToken.transist(ch, i)
+        while (trans.isEpsilon) {
+          trans = parseToken.transist(ch, i)
         }
-        txtBuilder.append(jsonTxt(j))
-        txtBuilder.append(jsonTxt(j + 1))
-        j += 2
-      } else if (jsonTxt(j) == '"') {
-        closed = true
-        txtBuilder.append('"')
-        j += 1
-      } else {
-        txtBuilder.append(jsonTxt(j))
-        j += 1
-      }
-    }
-
-    if (!closed) {
-      throw new Exception(
-        tokenParseError(jsonTxt, j, """missing '"' to close string text.""")
+      },
+      ResultCallback[Null](
+        errorCallback = errorCallback
       )
-    }
+    )
 
-    JSONToken(JSONToken.STRING, txtBuilder.toString(), i)
-  }
-
-  private def tokenParseError(txt: String, location: Int, errorMessage: String): String = {
-    val prev       = if (location - 5 <= 0) 0 else location - 5
-    val after      = if (location + 5 >= txt.length) txt.length - 1 else location + 5
-    val prevNearBy = if (prev > location) "" else txt.substring(prev, location)
-    val afterNearBy =
-      if (location + 1 > after) "" else txt.substring(location + 1, after)
-    val cur = if (location < txt.length) txt(location) else ""
-    s"""[${location}]${errorMessage}. Error happened nearby '${prevNearBy} >${cur}< ${afterNearBy}'."""
+    parseToken.transistEnd(lastIndex)
   }
 }

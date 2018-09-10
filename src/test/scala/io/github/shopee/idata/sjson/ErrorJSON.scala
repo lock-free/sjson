@@ -7,7 +7,7 @@ class ErrorJSONTest extends org.scalatest.FunSuite {
       throw new Exception("should have error")
     } catch {
       case e: Exception => {
-        assert(e.getMessage.indexOf("text should not end up with \\.") !== -1)
+        assert(e.getMessage.indexOf("parse error") !== -1)
       }
     }
   }
@@ -18,7 +18,7 @@ class ErrorJSONTest extends org.scalatest.FunSuite {
       throw new Exception("should have error")
     } catch {
       case e: Exception => {
-        assert(e.getMessage.indexOf("""missing '"' to close string text.""") !== -1)
+        assert(e.getMessage.indexOf("parse error") !== -1)
       }
     }
   }

@@ -14,9 +14,9 @@ class ParseTest extends org.scalatest.FunSuite {
   }
 
   test("parse: number") {
+    assert(JSON.parse("0E-8") == 0) // big decimal
     assert(JSON.parse(JSON.stringify(123)) == 123)
     assert(JSON.parse(JSON.stringify(0.123)) == 0.123)
-    assert(JSON.parse("0E-8") == 0) // big decimal
     assert(JSON.parse("1.234E0") == 1.234)
     assert(JSON.parse(JSON.stringify(0)) == 0)
   }
