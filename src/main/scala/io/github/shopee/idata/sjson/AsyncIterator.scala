@@ -133,10 +133,10 @@ class AsyncIterator[T]() {
       )
     )
 
-  def forEach(itemHandler: (T, Int) => Unit, resultCallback: ResultCallback[Null] = null) =
+  def forEach(itemHandler: (T, Int) => Unit = null, resultCallback: ResultCallback[Null] = null) =
     process[Null](
       itemHandler = (v, index, prev) => {
-        itemHandler(v, index)
+        if (itemHandler != null) itemHandler(v, index)
         prev
       },
       resultCallback = resultCallback,

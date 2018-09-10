@@ -33,12 +33,21 @@ import scala.collection.AbstractSeq
   * 4. convert json string to scala object
   */
 object JSON {
-  def parse(jsonTxt: String) = JSONParser.parse(jsonTxt)
+  val WIPE_VALUE = JSONParser.WIPE_VALUE
+
+  def parse(jsonTxt: String,
+            parseReplacer: JSONParser.ParseReplacer = JSONParser.defParseReplacer) =
+    JSONParser.parse(jsonTxt, parseReplacer)
+
+  def parseAsyncIterator(textIter: AsyncIterator[Char],
+                         parseReplacer: JSONParser.ParseReplacer = JSONParser.defParseReplacer) =
+    JSONParser.parseAsyncIterator(textIter, parseReplacer)
 
   def convert[T: TypeTag](plain: Any) = JSONConverter.convert[T](plain)
 
-  def parseTo[T: TypeTag](jsonTxt: String) =
-    convert[T](parse(jsonTxt))
+  def parseTo[T: TypeTag](jsonTxt: String,
+                          parseReplacer: JSONParser.ParseReplacer = JSONParser.defParseReplacer) =
+    convert[T](parse(jsonTxt, parseReplacer))
 
   def stringify(
       obj: Any,

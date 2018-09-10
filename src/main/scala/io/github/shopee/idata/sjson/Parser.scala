@@ -1,23 +1,36 @@
 package io.github.shopee.idata.sjson
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.Stack
 
-case class MidResolve(data: Any, lastToken: JSONToken, stack: ListBuffer[Any])
+class SpecialParserValue()
 
 object JSONParser {
-  def parse(jsonTxt: String) =
-    parseHelp(jsonTxt)
+  val WIPE_VALUE = new SpecialParserValue()
 
-  def toParseAsyncIterator(textIter: AsyncIterator[Char]): AsyncIterator[MidResolve] = {
-    val result = new AsyncIterator[MidResolve]()
-    var stack = ListBuffer[Any]()
+  // data, lastToken, stack
+  type ParseReplacer = (Any, Stack[String], ListBuffer[Any]) => Any
+  def defParseReplacer(data: Any, path: Stack[String], stack: ListBuffer[Any]) = data
+
+  def parse(jsonTxt: String, parseReplacer: ParseReplacer = defParseReplacer) =
+    parseHelp(jsonTxt, parseReplacer)
+
+  def parseAsyncIterator(textIter: AsyncIterator[Char],
+                         parseReplacer: ParseReplacer = defParseReplacer): AsyncIterator[Any] = {
+    val result    = new AsyncIterator[Any]()
+    val stack     = ListBuffer[Any]()
+    val path      = Stack[String]()
     val tokenIter = TokenParser.toTokenAsyncIterator(textIter)
 
-    tokenIter.forEach(itemHandler = (token, index) => {
-      handleToken(token, stack, (mid) => {
-        result.push(mid)
-      })
-    }, resultCallback = ResultCallback[Null](
+    tokenIter.forEach(
+      itemHandler = (token, index) => {
+        handleToken(token, stack, path, (data, path, stack) => {
+          val value = parseReplacer(data, path, stack)
+          result.push(value)
+          value
+        })
+      },
+      resultCallback = ResultCallback[Null](
         endCallback = (prev) => {
           if (stack.length == 0) {
             throw new Exception(s"Empty string.")
@@ -29,19 +42,21 @@ object JSONParser {
           prev
         },
         errorCallback = (err) => result.error(err)
-      ))
+      )
+    )
     result
   }
 
-  private def parseHelp(jsonTxt: String) = {
+  private def parseHelp(jsonTxt: String, parseReplacer: ParseReplacer) = {
     val tokens = TokenParser.toTokens(jsonTxt)
-    parseTokens(tokens)
+    parseTokens(tokens, parseReplacer)
   }
 
   // TODO error handle
-  def parseTokens(tokens: List[JSONToken]) = {
+  def parseTokens(tokens: List[JSONToken], parseReplacer: ParseReplacer = defParseReplacer) = {
     var stack = ListBuffer[Any]()
-    tokens.foreach((token) => handleToken(token, stack))
+    var path  = Stack[String]()
+    tokens.foreach((token) => handleToken(token, stack, path, parseReplacer))
     if (stack.length == 0) {
       throw new Exception(s"Empty string. Tokens=${tokens}.")
     }
@@ -53,7 +68,8 @@ object JSONParser {
 
   private def handleToken(token: JSONToken,
                           stack: ListBuffer[Any],
-                          onResolve: (MidResolve) => Unit = null) = {
+                          path: Stack[String],
+                          parseReplacer: ParseReplacer) = {
     val tokenText = token.text
 
     // 1. resolve atom value token
@@ -67,64 +83,56 @@ object JSONParser {
       case _                => token
     }
 
-    if (isToken(current)) { // json token
-      val curToken = current.asInstanceOf[JSONToken]
-
-      if (isTokenType(current, JSONToken.RIGHT_BRACKET)) { // '}'
-        if (stack.length == 0) {
-          throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
-        }
-        var objCnt = ListBuffer[Any]()
-
-        // pop until find '{'
-        while (!isTokenType(stack.last, JSONToken.LEFT_BRACKET)) {
-          objCnt.append(stack.last)
+    stack.append(
+      if (isToken(current)) { // json token
+        val curToken = current.asInstanceOf[JSONToken]
+        // record current path
+        if (isTokenType(current, JSONToken.RIGHT_BRACKET)) { // '}'
           if (stack.length == 0) {
-            throw new Exception(errorAtToken(curToken, s"missing '{'"))
+            throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
           }
-          stack.remove(stack.length - 1) // pop
-        }
-        stack.remove(stack.length - 1) // pop '{'
+          var objCnt = ListBuffer[Any]()
 
-        // resolved an object value
-        val objVal = objectValue(objCnt)
-        if (onResolve != null) onResolve(MidResolve(objVal, token, stack))
+          // pop until find '{'
+          while (!isTokenType(stack.last, JSONToken.LEFT_BRACKET)) {
+            objCnt.append(stack.last) // push pair
+            if (stack.length == 0) {
+              throw new Exception(errorAtToken(curToken, s"missing '{'"))
+            }
+            stack.remove(stack.length - 1) // pop
+          }
+          stack.remove(stack.length - 1) // pop '{'
 
-        reduceValue(stack, objVal)
-      } else if (isTokenType(current, JSONToken.RIGHT_PARAN)) { // ']'
-        if (stack.length == 0) {
-          throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
-        }
-        var arrCnt = ListBuffer[Any]()
-
-        // pop until find '['
-        while (!isTokenType(stack.last, JSONToken.LEFT_PARAN)) {
-          arrCnt.append(stack.last)
+          // resolved an object value
+          adjoinValue(stack, parseReplacer(objectValue(objCnt), path, stack))
+        } else if (isTokenType(current, JSONToken.RIGHT_PARAN)) { // ']'
           if (stack.length == 0) {
-            throw new Exception(errorAtToken(curToken, s"missing '['"))
+            throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
           }
-          stack.remove(stack.length - 1) // pop
+          var arrCnt = ListBuffer[Any]()
+
+          // pop until find '['
+          while (!isTokenType(stack.last, JSONToken.LEFT_PARAN)) {
+            arrCnt.append(stack.last) // push item
+            if (stack.length == 0) {
+              throw new Exception(errorAtToken(curToken, s"missing '['"))
+            }
+            stack.remove(stack.length - 1) // pop
+          }
+          stack.remove(stack.length - 1) // pop '['
+
+          // resolved an array
+          adjoinValue(stack, parseReplacer(arrayValue(arrCnt), path, stack))
+        } else {
+          current
         }
-        stack.remove(stack.length - 1) // pop '['
-
-        // resolved an array
-        val arrVal = arrayValue(arrCnt)
-        if (onResolve != null) onResolve(MidResolve(arrVal, token, stack))
-
-        reduceValue(stack, arrVal)
-      } else {
-        // other atom values
-        if (onResolve != null) onResolve(MidResolve(current, token, stack))
-
-        stack.append(current) // push
+      } else { // value
+        adjoinValue(stack, parseReplacer(current, path, stack)) // atom
       }
-    } else { // value
-      reduceValue(stack, current)
-    }
+    )
   }
 
-  private def reduceValue(stack: ListBuffer[Any], value: Any) {
-
+  private def adjoinValue(stack: ListBuffer[Any], value: Any): Any =
     /**
       * When find a ':' at the top of stack, try to pair it with previous key, `key: value`
       */
@@ -145,12 +153,10 @@ object JSONParser {
       }
 
       // find a pair
-      stack.append(pair(key.asInstanceOf[String], value)) // push pair
-    } else { // do nothing, just push
-      stack.append(value) // push
+      pair(key.asInstanceOf[String], value)
+    } else {
+      value
     }
-    stack
-  }
 
   // value to convert
   // TODO
