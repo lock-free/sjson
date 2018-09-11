@@ -139,6 +139,23 @@ class stringifyTest extends org.scalatest.FunSuite {
     )
   }
 
+  test("replacer2") {
+    case class User(name: String, age: Int, firends: Map[String, User] = Map[String, User]())
+    val user = User("ddchen", 10, Map("a" -> User("a", 100)))
+    assert(
+      JSON.stringify(
+        user,
+        (data, path) => {
+          if (path.reverse.mkString(".") == "friends.a") {
+            Some("a")
+          } else {
+            None
+          }
+        }
+      ) === s"""{"name":"ddchen","age":10,"firends":{"a":{"name":"a","age":100,"firends":{}}}}"""
+    )
+  }
+
   test("circle: base") {
     val v1 = new Array[Any](3)
     v1(0) = 1

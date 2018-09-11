@@ -4,9 +4,8 @@ import scala.reflect._
 import scala.reflect.runtime.universe._
 
 /**
-  *
-  * convert a plain scala value (string, number, map, list, true, false, null) to a specific case class
-  */
+ * convert a plain scala value (string, number, map, list, true, false, null) to a specific case class
+ */
 object JSONConverter {
   def convert[T: TypeTag](plain: Any) =
     convertHelp(typeOf[T], plain).asInstanceOf[T]
@@ -34,7 +33,7 @@ object JSONConverter {
       val types  = JSONUtil.getTypeParams(tpe)
       val keyTpe = types(0)
       if (JSONUtil.getClassByTpe(keyTpe) != classOf[String]) {
-        throw new Exception("object in json can only use string as key.")
+        throw new Exception("Object in json can only use string as key.")
       }
 
       val valueTpe = types(1)
@@ -95,11 +94,7 @@ object JSONConverter {
       } catch {
         case e: Exception => {
           throw new Exception(
-            s"""Fail to invoke apply function of you case class.
-Please make sure you defined case class which would have a default apply function.
-Fail to convert json object '$obj' to class '$runtimeClz'.
-Values for apply: ${values.toList}.
-Error message: ${e.getMessage}."""
+            s"""Fail to invoke apply function of you case class. Please make sure you defined case class which would have a default apply function. Fail to convert json object '$obj' to class '$runtimeClz'. Values for apply: ${values.toList}. Error message: ${e.getMessage}."""
           );
         }
       }
