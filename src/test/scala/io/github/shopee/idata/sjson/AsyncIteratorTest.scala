@@ -2,7 +2,9 @@ package io.github.shopee.idata.sjson
 
 class AsyncIteratorTest extends org.scalatest.FunSuite {
   private def sumIter(iter: AsyncIterator[Int], getRet: (Int) => Unit) {
-    iter.reduce[Int]((v, index, prev) => v + prev, 0, resultCallback = ResultCallback(endCallback = (sum) => getRet(sum)))
+    iter.reduce[Int]((v, index, prev) => v + prev,
+                     0,
+                     resultCallback = ResultCallback(endCallback = (sum) => getRet(sum)))
   }
 
   test("base") {
@@ -105,18 +107,24 @@ class AsyncIteratorTest extends org.scalatest.FunSuite {
     iter.push(1)
     iter.push(12)
     iter.push(-10)
-    iter.take(1, ResultCallback((list) => {
-      assert(list.toList == List(1))
-      iter.take(1, ResultCallback((list) => {
-        assert(list.toList == List(12))
-        iter.take(1, ResultCallback((list) => {
-          assert(list.toList == List(-10))
-          iter.take(1, ResultCallback((list) => {
-            assert(list.toList == List())
-          }))
-        }))
-      }))
-    }))
+    iter.take(
+      1,
+      ResultCallback((list) => {
+        assert(list.toList == List(1))
+        iter.take(
+          1,
+          ResultCallback((list) => {
+            assert(list.toList == List(12))
+            iter.take(1, ResultCallback((list) => {
+              assert(list.toList == List(-10))
+              iter.take(1, ResultCallback((list) => {
+                assert(list.toList == List())
+              }))
+            }))
+          })
+        )
+      })
+    )
     iter.end()
   }
 }

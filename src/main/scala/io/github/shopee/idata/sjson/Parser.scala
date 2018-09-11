@@ -5,12 +5,19 @@ import scala.collection.mutable.Stack
 
 class SpecialParserValue()
 
+object PathNode {
+  val ARRAY_CTX = 0
+  val OBJ_CTX   = 1
+}
+
+case class PathNode(ntype: Int, index: String)
+
 object JSONParser {
   val WIPE_VALUE = new SpecialParserValue()
 
   // data, lastToken, stack
-  type ParseReplacer = (Any, Stack[String], ListBuffer[Any]) => Any
-  def defParseReplacer(data: Any, path: Stack[String], stack: ListBuffer[Any]) = data
+  type ParseReplacer = (Any, Stack[PathNode], ListBuffer[Any]) => Any
+  def defParseReplacer(data: Any, path: Stack[PathNode], stack: ListBuffer[Any]) = data
 
   def parse(jsonTxt: String, parseReplacer: ParseReplacer = defParseReplacer) =
     parseHelp(jsonTxt, parseReplacer)
@@ -19,7 +26,7 @@ object JSONParser {
                          parseReplacer: ParseReplacer = defParseReplacer): AsyncIterator[Any] = {
     val result    = new AsyncIterator[Any]()
     val stack     = ListBuffer[Any]()
-    val path      = Stack[String]()
+    val path      = Stack[PathNode]()
     val tokenIter = TokenParser.toTokenAsyncIterator(textIter)
 
     tokenIter.forEach(
@@ -47,6 +54,18 @@ object JSONParser {
     result
   }
 
+  def toJsonPath(path: Stack[PathNode]): String = {
+    val pathBuilder = new ListBuffer[String]()
+    path.map((item) => {
+      if (item.ntype == PathNode.ARRAY_CTX) {
+        pathBuilder.append("[" + item.index + "]")
+      } else {
+        pathBuilder.append(item.index)
+      }
+    })
+    pathBuilder.reverse.mkString(".")
+  }
+
   private def parseHelp(jsonTxt: String, parseReplacer: ParseReplacer) = {
     val tokens = TokenParser.toTokens(jsonTxt)
     parseTokens(tokens, parseReplacer)
@@ -55,7 +74,7 @@ object JSONParser {
   // TODO error handle
   def parseTokens(tokens: List[JSONToken], parseReplacer: ParseReplacer = defParseReplacer) = {
     var stack = ListBuffer[Any]()
-    var path  = Stack[String]()
+    var path  = Stack[PathNode]()
     tokens.foreach((token) => handleToken(token, stack, path, parseReplacer))
     if (stack.length == 0) {
       throw new Exception(s"Empty string. Tokens=${tokens}.")
@@ -68,22 +87,23 @@ object JSONParser {
 
   private def handleToken(token: JSONToken,
                           stack: ListBuffer[Any],
-                          path: Stack[String],
-                          parseReplacer: ParseReplacer) = {
-    val tokenText = token.text
+                          path: Stack[PathNode],
+                          parseReplacer: ParseReplacer) =
+    if (!cleanWipedData(stack, token)) {
+      updatePath(path, stack, token)
+      val tokenText = token.text
 
-    // 1. resolve atom value token
-    val current = token.tokenType match {
-      // basic value types
-      case JSONToken.NUMBER => number(tokenText)
-      case JSONToken.STRING => text(tokenText)
-      case JSONToken.TRUE   => trueValue(tokenText)
-      case JSONToken.FALSE  => falseValue(tokenText)
-      case JSONToken.NULL   => nullValue(tokenText)
-      case _                => token
-    }
+      // 1. resolve atom value token
+      val current = token.tokenType match {
+        // basic value types
+        case JSONToken.NUMBER => number(tokenText)
+        case JSONToken.STRING => text(tokenText)
+        case JSONToken.TRUE   => trueValue(tokenText)
+        case JSONToken.FALSE  => falseValue(tokenText)
+        case JSONToken.NULL   => nullValue(tokenText)
+        case _                => token
+      }
 
-    stack.append(
       if (isToken(current)) { // json token
         val curToken = current.asInstanceOf[JSONToken]
         // record current path
@@ -104,7 +124,7 @@ object JSONParser {
           stack.remove(stack.length - 1) // pop '{'
 
           // resolved an object value
-          adjoinValue(stack, parseReplacer(objectValue(objCnt), path, stack))
+          reduceValue(stack, path, parseReplacer(objectValue(objCnt), path, stack))
         } else if (isTokenType(current, JSONToken.RIGHT_PARAN)) { // ']'
           if (stack.length == 0) {
             throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
@@ -122,21 +142,75 @@ object JSONParser {
           stack.remove(stack.length - 1) // pop '['
 
           // resolved an array
-          adjoinValue(stack, parseReplacer(arrayValue(arrCnt), path, stack))
+          reduceValue(stack, path, parseReplacer(arrayValue(arrCnt), path, stack))
         } else {
-          current
+          stack.append(current)
         }
       } else { // value
-        adjoinValue(stack, parseReplacer(current, path, stack)) // atom
+        reduceValue(stack, path, parseReplacer(current, path, stack)) // atom
       }
-    )
-  }
+    }
 
-  private def adjoinValue(stack: ListBuffer[Any], value: Any): Any =
+  private def cleanWipedData(stack: ListBuffer[Any], token: JSONToken): Boolean =
+    token.tokenType match {
+      case JSONToken.RIGHT_PARAN => {
+        val top = stack.last
+        if (top == WIPE_VALUE) {
+          stack.remove(stack.length - 1)
+        }
+        false
+      }
+      case JSONToken.RIGHT_BRACKET => {
+        val top = stack.last
+        if (top == WIPE_VALUE) {
+          stack.remove(stack.length - 1)
+        }
+        false
+      }
+      case JSONToken.COMMA => {
+        val top = stack.last
+        if (top == WIPE_VALUE) {
+          stack.remove(stack.length - 1)
+          true // ignore current ,
+        } else false
+      }
+      case _ => false
+    }
+
+  private def updatePath(path: Stack[PathNode], stack: ListBuffer[Any], token: JSONToken) =
+    token.tokenType match {
+      case JSONToken.LEFT_PARAN => {
+        path.push(PathNode(PathNode.ARRAY_CTX, "0"))
+      }
+      case JSONToken.LEFT_BRACKET => {
+        path.push(PathNode(PathNode.OBJ_CTX, ""))
+      }
+      case JSONToken.RIGHT_PARAN   => path.pop()
+      case JSONToken.RIGHT_BRACKET => path.pop()
+      case JSONToken.COLON => {
+        val top = path.pop()
+        val key = stack.last.asInstanceOf[String]
+        path.push(PathNode(PathNode.OBJ_CTX, key))
+      }
+
+      case JSONToken.COMMA => {
+        val top = path.pop()
+        if (top.ntype == PathNode.ARRAY_CTX) {
+          path.push(PathNode(PathNode.ARRAY_CTX, top.index.toInt + 1 + ""))
+        } else { // obj_ctx
+          path.push(PathNode(PathNode.OBJ_CTX, ""))
+        }
+      }
+
+      case _ => {}
+    }
+
+  private def reduceValue(stack: ListBuffer[Any], path: Stack[PathNode], value: Any): Any = {
+
     /**
       * When find a ':' at the top of stack, try to pair it with previous key, `key: value`
       */
-    if (stack.length > 0 && isTokenType(stack.last, JSONToken.COLON)) { // :
+    val resolvedValue = if (stack.length > 0 && isTokenType(stack.last, JSONToken.COLON)) { // :
       val top = stack.last.asInstanceOf[JSONToken]
       stack.remove(stack.length - 1) // pop :
       if (stack.length == 0) {
@@ -157,6 +231,9 @@ object JSONParser {
     } else {
       value
     }
+
+    stack.append(resolvedValue)
+  }
 
   // value to convert
   // TODO
@@ -200,7 +277,7 @@ object JSONParser {
       i += 1
 
       if (i == objCnt.length - 1) {
-        throw new Exception("Unexpected token")
+        throw new Exception(s"Unexpected token. ${objCnt}")
       }
 
       if (i < objCnt.length) {
@@ -231,7 +308,7 @@ object JSONParser {
 
       // check comma
       if (i == arrCnt.length - 1) {
-        throw new Exception("Unexpected token")
+        throw new Exception(s"Unexpected token. ${arrCnt}")
       }
 
       if (i < arrCnt.length) {

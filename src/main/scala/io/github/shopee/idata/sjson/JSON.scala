@@ -54,4 +54,6 @@ object JSON {
       replacer: Stringify.StringifyReplacer = Stringify.defaultStringifyReplacer
   ): String =
     Stringify.stringify(obj, replacer)
+
+  def toJsonPath(path: Stack[PathNode]): String = JSONParser.toJsonPath(path)
 }

@@ -98,23 +98,13 @@ class AsyncIterator[T]() {
     next(
       NextHandler(
         (v, index, p) => {
-          try {
-            val nextPrev = itemHandler(v, index, prev)
-            if (shouldStop(v, index)) { // stop
-              if (resultCallback != null && resultCallback.endCallback != null)
-                resultCallback.endCallback(nextPrev)
-            } else {
-              // keep going
-              process(itemHandler, shouldStop, resultCallback, nextPrev)
-            }
-          } catch {
-            case e: Exception => {
-              if (resultCallback != null && resultCallback.errorCallback != null) {
-                resultCallback.errorCallback(e)
-              } else {
-                throw e
-              }
-            }
+          val nextPrev = itemHandler(v, index, prev)
+          if (shouldStop(v, index)) { // stop
+            if (resultCallback != null && resultCallback.endCallback != null)
+              resultCallback.endCallback(nextPrev)
+          } else {
+            // keep going
+            process(itemHandler, shouldStop, resultCallback, nextPrev)
           }
         },
         resultCallback = ResultCallback(

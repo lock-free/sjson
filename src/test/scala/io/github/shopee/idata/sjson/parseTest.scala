@@ -1,5 +1,7 @@
 package io.github.shopee.idata.sjson
 
+import scala.collection.mutable.ListBuffer
+
 case class User(name: String, email: String)
 case class Users(users: List[User])
 case class Person(name: String, gender: String)
@@ -35,14 +37,14 @@ class ParseTest extends org.scalatest.FunSuite {
     }) == 2)
 
     assert(JSON.parse(JSON.stringify(List(1, 2, null)), (data, _, _) => {
-      if(data == null) 0 else data
+      if (data == null) 0 else data
     }) == List(1, 2, 0))
   }
 
   test("parse-async: base") {
-    val textIter = new AsyncIterator[Char]()
+    val textIter  = new AsyncIterator[Char]()
     val parseIter = JSON.parseAsyncIterator(textIter)
-    var count = 0
+    var count     = 0
     parseIter.forEach((item, index) => {
       count += 1
       assert(item == 1)
@@ -55,12 +57,12 @@ class ParseTest extends org.scalatest.FunSuite {
   }
 
   test("parse-async: list") {
-    val textIter = new AsyncIterator[Char]()
+    val textIter  = new AsyncIterator[Char]()
     val parseIter = JSON.parseAsyncIterator(textIter)
-    var count = 0
+    var count     = 0
     parseIter.forEach((item, index) => {
       count += 1
-      if(index < 4) assert(item == count) else assert(item ==List(1,2,3))
+      if (index < 3) assert(item == count) else assert(item == List(1, 2, 3))
       item
     })
 
@@ -77,27 +79,51 @@ class ParseTest extends org.scalatest.FunSuite {
 
   test("parse-async: drop in stream example") {
     val textIter = new AsyncIterator[Char]()
-    val parseIter = JSON.parseAsyncIterator(textIter, (data, stack, _) => {
-      println(data)
-      println(stack)
-      if(stack.length == 6) {
-        JSON.WIPE_VALUE
-      } else data
-    })
-    parseIter.forEach()
+    val list     = ListBuffer[Any]()
+    val parseIter = JSON.parseAsyncIterator(
+      textIter,
+      (data, pathStack, _) => {
+        if (pathStack.length == 2 && pathStack(pathStack.length - 1).index == "data" && pathStack(
+              pathStack.length - 2
+            ).ntype == PathNode.ARRAY_CTX) {
+          list.append(data)
+          JSON.WIPE_VALUE
+        } else data
+      }
+    )
 
-    textIter.pushList(JSON.stringify(Map(
-      "type" -> "normal",
-      "data"-> List(Map(
-        "a"-> 1,
-        "b" -> 2
-       ), Map(
-         "a"-> 10,
-        "b" -> 20)), // imagine this list is very huge, and received from the network
-      "msg" -> "some"
-      )).toList)
+    var result: Any = null
+
+    parseIter
+      .reduce[Any]((item, index, prev) => item, null, ResultCallback(endCallback = (prev) => {
+        result = prev
+      }))
+
+    val datas = List(Map(
+                       "a" -> 1,
+                       "b" -> 2
+                     ),
+                     Map("a" -> 10, "b" -> 20),
+                     Map(
+                       "a" -> 12,
+                       "b" -> 123
+                     ))
+    textIter.pushList(
+      JSON
+        .stringify(
+          Map(
+            "type" -> "normal",
+            "data" -> datas, // imagine this list is very huge, and received from the network
+            "msg"  -> "some"
+          )
+        )
+        .toList
+    )
 
     textIter.end()
+
+    assert(result == Map("type" -> "normal", "data" -> List(), "msg" -> "some"))
+    assert(list == datas)
   }
 
   import scala.reflect.ClassTag
