@@ -1,10 +1,15 @@
 package io.github.shopee.idata.sjson
 
 class AsyncIteratorTest extends org.scalatest.FunSuite {
-  private def sumIter(iter: AsyncIterator[Int], getRet: (Int) => Unit) {
-    iter.reduce[Int]((v, index, prev) => v + prev,
-                     0,
-                     resultCallback = ResultCallback(endCallback = (sum) => getRet(sum)))
+  private def sumIter(iter: AsyncIterator[Int],
+                      getRet: (Int) => Unit,
+                      errorCallback: AsyncIterator.ErrorCallback = null) {
+    iter.reduce[Int](
+      (v, index, prev) => v + prev,
+      0,
+      resultCallback =
+        ResultCallback(endCallback = (sum) => getRet(sum), errorCallback = errorCallback)
+    )
   }
 
   test("base") {
@@ -17,6 +22,73 @@ class AsyncIteratorTest extends org.scalatest.FunSuite {
     iter.push(5)
     iter.end()
     assert(sum == 6)
+  }
+
+  test("push after end") {
+    assertThrows[Exception] {
+      val iter = new AsyncIterator[Int]()
+      iter.push(1)
+      iter.end()
+      iter.push(2)
+    }
+  }
+
+  test("process twice") {
+    val iter = new AsyncIterator[Int]()
+    var sum  = 0
+    sumIter(iter, (v) => {})
+
+    iter.push(1)
+    iter.push(5)
+    iter.end()
+
+    // the second
+    sumIter(iter, (v) => {
+      sum = v
+    })
+    assert(sum == 0)
+  }
+
+  test("send error") {
+    assertThrows[Exception] {
+      val iter = new AsyncIterator[Int]()
+      iter.push(1)
+      var sum = 0
+      sumIter(iter, (v) => {
+        sum = v
+      })
+
+      // send error
+      iter.error(new Exception("123"))
+    }
+  }
+
+  test("catch error") {
+    val iter = new AsyncIterator[Int]()
+    iter.push(1)
+    var sum = 0
+    sumIter(iter, (v) => {
+      sum = v
+    }, (err) => {
+      assert(err.getMessage.indexOf("123") != -1)
+    })
+
+    // send error
+    iter.error(new Exception("123"))
+  }
+
+  test("send error2") {
+    assertThrows[Exception] {
+      val iter = new AsyncIterator[Int]()
+      iter.push(1)
+      // send error
+      iter.error(new Exception("123"))
+
+      var sum = 0
+      sumIter(iter, (v) => {
+        sum = v
+      })
+    }
   }
 
   test("base2") {

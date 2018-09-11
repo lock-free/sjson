@@ -80,12 +80,16 @@ class ParseTest extends org.scalatest.FunSuite {
   test("parse-async: drop in stream example") {
     val textIter = new AsyncIterator[Char]()
     val list     = ListBuffer[Any]()
+
+    var index = 0
     val parseIter = JSON.parseAsyncIterator(
       textIter,
       (data, pathStack, _) => {
         if (pathStack.length == 2 && pathStack(pathStack.length - 1).index == "data" && pathStack(
               pathStack.length - 2
             ).ntype == PathNode.ARRAY_CTX) {
+          assert(JSON.toJsonPath(pathStack) == "data.[0]")
+          index += 1
           list.append(data)
           JSON.WIPE_VALUE
         } else data
