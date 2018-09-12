@@ -43,20 +43,25 @@ case class User(name: String, age: Int)
 
 object Main {
   def main(args: Array[String]) {
-    JSON.stringify(List(1,2,3)) // [1,2,3]
-		JSON.stringify(Map(
-      "items" -> List(1,2,3),
-      "type" -> "test"
-		)) // {"items": [1,2,3], "type": "testl"}
+    // [1,2,3]
+    JSON.stringify(List(1,2,3))
+
+    // {"items": [1,2,3], "type": "testl"}
+		JSON.stringify(Map("items" -> List(1,2,3), "type" -> "test"))
 		
-		JSON.stringify(User("NoName", 7)) // {"name": "NoName", age: 7}
+    // {"name": "NoName", age: 7}
+		JSON.stringify(User("NoName", 7))
 		
-		// parse to plain scala object
-		JSON.parse("[1,2,3]") // List(1,2,3)
-		JSON.parse(s"""{"a":1,"b":2}""") // Map("a" -> 1, "b" -> 2)
+		/* parse to plain scala object */
+    // List(1,2,3)
+		JSON.parse("[1,2,3]") 
+
+    // Map("a" -> 1, "b" -> 2)
+		JSON.parse(s"""{"a":1,"b":2}""") 
 
     // parse to target type
-		JSON.parseTo[User](s"""{"name":"ddchen","age":10}""") // User("ddchen", 10)
+    // User("ddchen", 10)
+		JSON.parseTo[User](s"""{"name":"ddchen","age":10}""")
   }
 }
 ```
@@ -99,16 +104,20 @@ scala.collection.mutable.AbstractSeq[_] | array
 Array[_] | array
 scala.collection.mutable.Map[_, _\] | object
 scala.collection.immutable.Map[_, _\] | object 
-other class | object (field -> value)
+other class | object (field name -> field value)
 
 ```scala
 import io.github.shopee.idata.sjson.JSON
 
 // case class
 case class User(name: String, age: Int)
+
 val user = User("ddchen", 10)
+
 JSON.stringify(user) // {"name":"ddchen","age":10}
+
 JSON.stringify(List(1, 2, 3)) // [1,2,3]
+
 JSON.stringify(Map(
   "user" -> user,
   "data" -> List(1,2,3)
@@ -123,15 +132,23 @@ If you want to change the process of stringify, you can use optional paramater `
 
 ```scala
 case class User(name: String, age: Int, login: java.util.Date)
+
 val user = User("ddchen", 10, new java.util.Date(1990 - 1900, 2, 12))
+
+// {"name":"ddchen","age":10,"login":"1990,3,12"}
 JSON.stringify(user, (data, path) => {
-  if (path.reserse.mkString(".") == "login") { // path stored json paths in a reversed way.
+
+  // path stored json paths in a reversed way. (path is a stack)
+  if (path.reserse.mkString(".") == "login") {
+
     val date = data.asInstanceOf[java.util.Date]
     Some(s""""${date.getYear() + 1900},${date.getMonth() + 1},${date.getDate()}"""") // new stringify result for data
   } else {
-    None // do not change
+
+    // None means do not change the origin converting rule
+    None
   }
-}) // {"name":"ddchen","age":10,"login":"1990,3,12"}
+})
 ```
 
 ### JSON.parse
@@ -174,13 +191,14 @@ Nothing | Null
 
 ```scala
 import io.github.shopee.idata.sjson.{JSON, AsyncIterator}
+
 val textIter = new AsyncIterator[Char]()
 
 // stream handle part
 val parseIter = JSON.parseAsyncIterator(textIter, (data, pathStack, _) => {
     if (JSON.toJsonPath(pathStack) == "data.[0]") { // because we wiped this data, so the json path should always be "data.[0]"
       // handle data here
-      print(data) // can caputure all data like {"value":"datak"}
+      print(data) // can caputure all data like {"value":"datak"} in this example
 
       JSON.WIPE_VALUE // do not store data in memory
     } else data
