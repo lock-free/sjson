@@ -47,21 +47,21 @@ object Main {
     JSON.stringify(List(1,2,3))
 
     // {"items": [1,2,3], "type": "testl"}
-		JSON.stringify(Map("items" -> List(1,2,3), "type" -> "test"))
+    JSON.stringify(Map("items" -> List(1,2,3), "type" -> "test"))
 		
     // {"name": "NoName", age: 7}
-		JSON.stringify(User("NoName", 7))
+    JSON.stringify(User("NoName", 7))
 		
 		/* parse to plain scala object */
     // List(1,2,3)
-		JSON.parse("[1,2,3]") 
+    JSON.parse("[1,2,3]") 
 
     // Map("a" -> 1, "b" -> 2)
-		JSON.parse(s"""{"a":1,"b":2}""") 
+    JSON.parse(s"""{"a":1,"b":2}""") 
 
     // parse to target type
     // User("ddchen", 10)
-		JSON.parseTo[User](s"""{"name":"ddchen","age":10}""")
+    JSON.parseTo[User](s"""{"name":"ddchen","age":10}""")
   }
 }
 ```
