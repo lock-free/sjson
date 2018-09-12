@@ -11,10 +11,10 @@ JSON library for Scala
 - [Quick example](#quick-example)
 - [Install](#install)
 - [Main Apis](#main-apis)
-  * [JSON.stringify(value: Any[, replacer]): String](#jsonstringifyvalue-any-replacer-string)
-  * [JSON.parse(jsonTxt: String[, replacer]): Any](#jsonparsejsontxt-string-replacer-any)
-  * [JSON.convert\[T](value: Any): T](#jsonconverttvalue-any-t)
-  * [JSON.parseTo\[T](txt): T](#jsonparsetottxt-t)
+  * [JSON.stringify](#jsonstringify)
+  * [JSON.parse](#jsonparse)
+  * [JSON.convert](#jsonconvert)
+  * [JSON.parseTo](#jsonparseto)
 - [Streaming example](#streaming-example)
 
 <!-- tocstop -->
@@ -73,7 +73,9 @@ libraryDependencies ++= Seq(
 
 ## Main Apis
 
-### JSON.stringify(value: Any[, replacer]): String
+### JSON.stringify
+
+`JSON.stringify(value: Any[, replacer]): String`
 
 Convert a scala object to json text.
 
@@ -81,8 +83,8 @@ Convert a scala object to json text.
 
 At most times, you just need to follow the basic rules and do not need to write any converters by yourself. SJSON would use following basic rules, stringify value recursively.
 
-scala type | json type |
---- | --- | ---
+scala type | json type
+--- | ---
 String | string
 Char | string
 java.sql.Timestamp | string
@@ -132,12 +134,14 @@ JSON.stringify(user, (data, path) => {
 }) // {"name":"ddchen","age":10,"login":"1990,3,12"}
 ```
 
-### JSON.parse(jsonTxt: String[, replacer]): Any
+### JSON.parse
+
+`JSON.parse(jsonTxt: String[, replacer]): Any`
 
 Convert a json text to a scala object
 
-json type | scala type |
---- | --- | ---
+json type | scala type
+--- | ---
 string | String
 number | Number
 bool | Boolean
@@ -147,12 +151,14 @@ object | Map[String, Any]
 
 After parsing, you will get a plain scala object. Then you can use `JSON.convert[T](obj)` to convert this object to target scala type.
 
-### JSON.convert\[T](value: Any): T
+### JSON.convert
+
+`JSON.convert[T](value: Any): T`
 
 - Default converting rules
 
-plain scala type | scala type |
---- | --- | ---
+plain scala type | scala type
+--- | ---
 same type | same type 
 List | Array
 List | Vector
@@ -160,9 +166,9 @@ Map | Map
 Map | Case class
 Nothing | Null
 
-### JSON.parseTo\[T](txt): T
+### JSON.parseTo
 
-JSON.parseTo\[T](txt) = JSON.convert\[T](JSON.parse(txt))
+`JSON.parseTo[T](txt) = JSON.convert[T](JSON.parse(txt))`
 
 ## Streaming example
 
