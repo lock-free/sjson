@@ -35,30 +35,39 @@ JSON library for Scala
 ## Quick example
 
 ```scala
+package io.github.idata.json.example
+
 import io.github.shopee.idata.sjson.JSON
 
-// stringify
-JSON.stringify(List(1,2,3)) // [1,2,3]
-JSON.stringify(Map(
-  "items": List(1,2,3),
-  "type": "test"
-)) // {"items": [1,2,3], "type": "testl"}
-
 case class User(name: String, age: Int)
-JSON.stringify(User("NoName", 7)) // {"name": "NoName", age: 7}
 
-// parse
-JSON.parse("[1,2,3]") // List(1,2,3)
-JSON.parse(s"""{"a":1,"b":2}""") // Map("a" -> 1, "b" -> 2)
+object Main {
+  def main(args: Array[String]) {
+    JSON.stringify(List(1,2,3)) // [1,2,3]
+		JSON.stringify(Map(
+      "items" -> List(1,2,3),
+      "type" -> "test"
+		)) // {"items": [1,2,3], "type": "testl"}
+		
+		JSON.stringify(User("NoName", 7)) // {"name": "NoName", age: 7}
+		
+		// parse to plain scala object
+		JSON.parse("[1,2,3]") // List(1,2,3)
+		JSON.parse(s"""{"a":1,"b":2}""") // Map("a" -> 1, "b" -> 2)
+
+    // parse to target type
+		JSON.parseTo[User](s"""{"name":"ddchen","age":10}""") // User("ddchen", 10)
+  }
+}
 ```
 
 ## Install
 
-- sbt
+- install by sbt
 
 ```
 libraryDependencies ++= Seq(
-  "io.github.idata-shopee" %% "sjson" % "0.0.2"
+  "io.github.idata-shopee" %% "sjson" % "0.1.2"
 )
 ```
 
