@@ -14,7 +14,7 @@ JSON library for Scala
   * [JSON.stringify(value: Any[, replacer]): String](#jsonstringifyvalue-any-replacer-string)
   * [JSON.parse(jsonTxt: String[, replacer]): Any](#jsonparsejsontxt-string-replacer-any)
   * [JSON.convert\[T](value: Any): T](#jsonconverttvalue-any-t)
-  * [JSON.parseTo\[T](txt) = JSON.convert\[T](JSON.parse(txt))](#jsonparsetottxt--jsonconverttjsonparsetxt)
+  * [JSON.parseTo\[T](txt): T](#jsonparsetottxt-t)
 - [Streaming example](#streaming-example)
 
 <!-- tocstop -->
@@ -160,7 +160,9 @@ Map | Map
 Map | Case class
 Nothing | Null
 
-### JSON.parseTo\[T](txt) = JSON.convert\[T](JSON.parse(txt))
+### JSON.parseTo\[T](txt): T
+
+JSON.parseTo\[T](txt) = JSON.convert\[T](JSON.parse(txt))
 
 ## Streaming example
 
