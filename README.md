@@ -54,7 +54,13 @@ JSON.parse(s"""{"a":1,"b":2}""") // Map("a" -> 1, "b" -> 2)
 
 ## Install
 
-// TODO publish
+- sbt
+
+```
+libraryDependencies ++= Seq(
+  "io.github.idata-shopee" %% "sjson" % "0.0.2"
+)
+```
 
 ## Main Apis
 

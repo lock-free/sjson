@@ -1,4 +1,4 @@
-sonatypeProfileName := "shopee.idata"
+sonatypeProfileName := "io.github.idata-shopee"
 
 publishMavenStyle := true
 
