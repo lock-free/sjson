@@ -46,7 +46,7 @@ class stringifyTest extends org.scalatest.FunSuite {
 
   test("stringify: java.util.Date") {
     assert(
-      JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == "\"Mon Mar 12 00:00:00 GMT 1990\""
+      JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == s""""${new java.util.Date(1990 - 1900, 2, 12).toString()}""""
     )
   }
 
