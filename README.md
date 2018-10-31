@@ -2,6 +2,8 @@
 
 JSON library for Scala
 
+![travis-ci build status](https://travis-ci.com/idata-shopee/sjson.svg?branch=master)
+
 > Converting JSON and Scala automaticly
 
 <!-- toc -->
