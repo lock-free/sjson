@@ -1,6 +1,6 @@
 name := "sjson"
 organization := "io.github.idata-shopee"
-version := "0.1.3"
+version := "0.1.4"
 scalaVersion := "2.12.4"
 
 useGpg := true 
