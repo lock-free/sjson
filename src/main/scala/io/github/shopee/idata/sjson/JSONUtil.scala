@@ -22,6 +22,8 @@ object JSONUtil {
       value.asInstanceOf[Double].toInt
     } else if (tpeClz == classOf[Int] && value.isInstanceOf[Long]) {
       value.asInstanceOf[Long].toInt
+    } else if (tpeClz == classOf[Long] && value.isInstanceOf[Int]) {
+      value.asInstanceOf[Int].toLong
     } else {
       try {
         tpeClz.cast(value)

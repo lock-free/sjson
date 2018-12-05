@@ -144,6 +144,7 @@ class ParseTest extends org.scalatest.FunSuite {
     import reflect.runtime.universe._
     import JSONConverter._
 
+    revert(1000l)
     revert("1234")
     revert(1234)
     revert(true)
