@@ -4,8 +4,8 @@ import scala.reflect._
 import scala.reflect.runtime.universe._
 
 /**
- * convert a plain scala value (string, number, map, list, true, false, null) to a specific case class
- */
+  * convert a plain scala value (string, number, map, list, true, false, null) to a specific case class
+  */
 object JSONConverter {
   def convert[T: TypeTag](plain: Any) =
     convertHelp(typeOf[T], plain).asInstanceOf[T]

@@ -30,7 +30,10 @@ object Stringify {
           case v: java.util.Date     => JSONUtil.escapeString(v.toString())
 
           // number
+          case v: Double => if (v.isNaN || v.isInfinity) "null" else v.toString()
+          case v: Float  => if (v.isNaN || v.isInfinity) "null" else v.toString()
           case v: Number => v.toString()
+
           // boolean
           case v: Boolean => if (v == true) "true" else "false"
           // null

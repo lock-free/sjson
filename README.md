@@ -101,6 +101,8 @@ Boolean | bool
 None | null
 Null | null
 Unit | null
+NaN  | null
+Infinity  | null
 AbstractSeq[_] | array
 scala.collection.mutable.AbstractSeq[_] | array
 Array[_] | array

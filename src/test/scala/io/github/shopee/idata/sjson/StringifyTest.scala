@@ -17,6 +17,9 @@ class stringifyTest extends org.scalatest.FunSuite {
     val d: Double = 234.134
     assert(JSON.stringify(d) == "234.134")
     assert(JSON.stringify(123456l) == "123456")
+    assert(JSON.stringify(Double.NaN) == "null")
+    assert(JSON.stringify(Float.NaN) == "null")
+    assert(JSON.stringify(1.0 / 0.0) == "null")
   }
 
   test("stringify: boolean") {
@@ -46,7 +49,11 @@ class stringifyTest extends org.scalatest.FunSuite {
 
   test("stringify: java.util.Date") {
     assert(
-      JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == s""""${new java.util.Date(1990 - 1900, 2, 12).toString()}""""
+      JSON.stringify(new java.util.Date(1990 - 1900, 2, 12)) == s""""${new java.util.Date(
+        1990 - 1900,
+        2,
+        12
+      ).toString()}""""
     )
   }
 
