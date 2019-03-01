@@ -1,3 +1,5 @@
+export GPG_TTY=$(shell tty)
+
 build-local:
 	@sbt publishLocal
 
