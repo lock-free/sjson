@@ -56,14 +56,17 @@ class PerfTest extends org.scalatest.FunSuite {
 
   test("parse big string3") {
     println("#######[parse big string3]")
-    var list = 1 to 50000 map ((i) => Map(
-      "level3_cat" -> i,
-      "sub_cat" -> i / 10,
-      "sub_name" -> "Console Gaming",
-      "main_name" -> "Gaming",
-      "main_cat" -> i * 100,
-      "level3_name" -> "Consoles"
-    ))
+    var list = 1 to 50000 map (
+        (i) =>
+          Map(
+            "level3_cat"  -> i,
+            "sub_cat"     -> i / 10,
+            "sub_name"    -> "Console Gaming",
+            "main_name"   -> "Gaming",
+            "main_cat"    -> i * 100,
+            "level3_name" -> "Consoles"
+          )
+    )
     val bigJsonTxt = JSON.stringify(list)
     println("#######json text length: " + bigJsonTxt.length)
 
