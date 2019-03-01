@@ -12,20 +12,24 @@ object PathNode {
 
 case class PathNode(ntype: Int, index: String)
 
+// do not use stack.length, it's too slow
 object JSONParser {
   val WIPE_VALUE = new SpecialParserValue()
 
+  // replacer can middle the parsing process
   // data, lastToken, stack
-  type ParseReplacer = (Any, Stack[PathNode], ListBuffer[Any]) => Any
-  def defParseReplacer(data: Any, path: Stack[PathNode], stack: ListBuffer[Any]) = data
+  type ParseReplacer = (Any, Stack[PathNode], Stack[Any]) => Any
+  def defParseReplacer(data: Any, path: Stack[PathNode], stack: Stack[Any]) = data
 
-  def parse(jsonTxt: String, parseReplacer: ParseReplacer = defParseReplacer) =
-    parseHelp(jsonTxt, parseReplacer)
+  def parse(jsonTxt: String, parseReplacer: ParseReplacer = defParseReplacer): Any = {
+    val tokens = TokenParser.toTokens(jsonTxt)
+    parseTokens(tokens, parseReplacer)
+  }
 
   def parseAsyncIterator(textIter: AsyncIterator[Char],
                          parseReplacer: ParseReplacer = defParseReplacer): AsyncIterator[Any] = {
     val result    = new AsyncIterator[Any]()
-    val stack     = ListBuffer[Any]()
+    val stack     = Stack[Any]()
     val path      = Stack[PathNode]()
     val tokenIter = TokenParser.toTokenAsyncIterator(textIter)
 
@@ -39,7 +43,7 @@ object JSONParser {
       },
       resultCallback = ResultCallback[Null](
         endCallback = (prev) => {
-          if (stack.length == 0) {
+          if (stack.isEmpty) {
             throw new Exception(s"Empty string.")
           }
           if (stack.length > 1) {
@@ -66,118 +70,155 @@ object JSONParser {
     pathBuilder.reverse.mkString(".")
   }
 
-  private def parseHelp(jsonTxt: String, parseReplacer: ParseReplacer) = {
-    val tokens = TokenParser.toTokens(jsonTxt)
-    parseTokens(tokens, parseReplacer)
-  }
-
-  // TODO error handle
-  def parseTokens(tokens: List[JSONToken], parseReplacer: ParseReplacer = defParseReplacer) = {
-    var stack = ListBuffer[Any]()
+  def parseTokens(tokens: List[JSONToken], parseReplacer: ParseReplacer = defParseReplacer): Any = {
+    var stack = Stack[Any]()
     var path  = Stack[PathNode]()
     tokens.foreach((token) => handleToken(token, stack, path, parseReplacer))
-    if (stack.length == 0) {
+
+    if (stack.isEmpty) {
       throw new Exception(s"Empty string. Tokens=${tokens}.")
     }
-    if (stack.length > 1) {
+
+    val top = stack.pop()
+
+    if (!stack.isEmpty) {
       throw new Exception(s"Unexpected token at last. Last stack=${stack}. Tokens=${tokens}.")
     }
-    stack(0)
+
+    top
   }
 
   private def handleToken(token: JSONToken,
-                          stack: ListBuffer[Any],
+                          stack: Stack[Any],
                           path: Stack[PathNode],
                           parseReplacer: ParseReplacer) =
     if (!cleanWipedData(stack, token)) {
       updatePath(path, stack, token)
       val tokenText = token.text
 
-      // 1. resolve atom value token
-      val current = token.tokenType match {
-        // basic value types
-        case JSONToken.NUMBER => number(tokenText)
-        case JSONToken.STRING => text(tokenText)
-        case JSONToken.TRUE   => trueValue(tokenText)
-        case JSONToken.FALSE  => falseValue(tokenText)
-        case JSONToken.NULL   => nullValue(tokenText)
-        case _                => token
-      }
-
-      if (isToken(current)) { // json token
-        val curToken = current.asInstanceOf[JSONToken]
-        // record current path
-        if (isTokenType(current, JSONToken.RIGHT_BRACKET)) { // '}'
-          if (stack.length == 0) {
-            throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
-          }
-          var objCnt = ListBuffer[Any]()
-
-          // pop until find '{'
-          while (!isTokenType(stack.last, JSONToken.LEFT_BRACKET)) {
-            objCnt.append(stack.last) // push pair
-            if (stack.length == 0) {
-              throw new Exception(errorAtToken(curToken, s"missing '{'"))
+      reduceValue(
+        stack,
+        token.tokenType match {
+          case JSONToken.NUMBER =>
+            if (tokenText.contains(".")) {
+              tokenText.toDouble
+            } else {
+              val value = BigDecimal(new java.math.BigDecimal(tokenText))
+              if (value >= -2147483648 && value <= 2147483647) {
+                value.toInt
+              } else {
+                value
+              }
             }
-            stack.remove(stack.length - 1) // pop
-          }
-          stack.remove(stack.length - 1) // pop '{'
-
-          // resolved an object value
-          reduceValue(stack, path, parseReplacer(objectValue(objCnt), path, stack))
-        } else if (isTokenType(current, JSONToken.RIGHT_PARAN)) { // ']'
-          if (stack.length == 0) {
-            throw new Exception(errorAtToken(curToken, s"Unexpected token '${curToken.text}'"))
-          }
-          var arrCnt = ListBuffer[Any]()
-
-          // pop until find '['
-          while (!isTokenType(stack.last, JSONToken.LEFT_PARAN)) {
-            arrCnt.append(stack.last) // push item
-            if (stack.length == 0) {
-              throw new Exception(errorAtToken(curToken, s"missing '['"))
+          case JSONToken.STRING => JSONUtil.unescapeString(tokenText)
+          case JSONToken.TRUE   => true
+          case JSONToken.FALSE  => false
+          case JSONToken.NULL   => null
+          case JSONToken.RIGHT_BRACKET => // '}'
+            if (stack.isEmpty) {
+              throw new Exception(errorAtToken(token, s"Unexpected token '${tokenText}'"))
             }
-            stack.remove(stack.length - 1) // pop
-          }
-          stack.remove(stack.length - 1) // pop '['
+            var objCnt = Stack[Any]()
 
-          // resolved an array
-          reduceValue(stack, path, parseReplacer(arrayValue(arrCnt), path, stack))
-        } else {
-          stack.append(current)
-        }
-      } else { // value
-        reduceValue(stack, path, parseReplacer(current, path, stack)) // atom
-      }
+            // pop until find '{'
+            while (!isTokenType(stack.top, JSONToken.LEFT_BRACKET)) {
+              objCnt.push(stack.top) // push pair
+              if (stack.isEmpty) {
+                throw new Exception(errorAtToken(token, s"missing '{'"))
+              }
+              stack.pop() // pop
+            }
+            stack.pop() // pop '{'
+
+            var tupleList = Stack[(String, Any)]()
+
+            while (!objCnt.isEmpty) {
+              val p = objCnt.pop()
+              p match {
+                case Pair(key, value) => {
+                  val pairP = p.asInstanceOf[Pair]
+                  tupleList.push((pairP.key, pairP.value))
+                }
+                case _ => {
+                  throw new Exception("object can only composed by pairs.")
+                }
+              }
+              if (!objCnt.isEmpty) {
+                expectToken(objCnt.top, JSONToken.COMMA)
+                objCnt.pop()
+              }
+            }
+
+            tupleList.toMap
+
+          case JSONToken.RIGHT_PARAN => // ']'
+            if (stack.isEmpty) {
+              throw new Exception(errorAtToken(token, s"Unexpected token '${token.text}'"))
+            }
+
+            var arrCnt = Stack[Any]()
+
+            // pop until find '['
+            while (!isTokenType(stack.top, JSONToken.LEFT_PARAN)) {
+              arrCnt.push(stack.top) // push item
+              if (stack.isEmpty) {
+                throw new Exception(errorAtToken(token, s"missing '['"))
+              }
+              stack.pop() // pop
+            }
+            stack.pop() // pop '['
+
+            var list = ListBuffer[Any]()
+            while (!arrCnt.isEmpty) {
+              val v = arrCnt.pop()
+              v match {
+                case Pair(key, value) => {
+                  throw new Exception("array can not contain pair.")
+                }
+                case _ => {
+                  list.append(v)
+                }
+              }
+
+              // check comma
+              if (!arrCnt.isEmpty) {
+                expectToken(arrCnt.top, JSONToken.COMMA)
+                arrCnt.pop()
+              }
+            }
+
+            list.toList
+          case _ => token
+        },
+        path,
+        parseReplacer
+      )
     }
 
-  private def cleanWipedData(stack: ListBuffer[Any], token: JSONToken): Boolean =
+  private def cleanWipedData(stack: Stack[Any], token: JSONToken): Boolean =
     token.tokenType match {
       case JSONToken.RIGHT_PARAN => {
-        val top = stack.last
-        if (top == WIPE_VALUE) {
-          stack.remove(stack.length - 1)
+        if (stack.top == WIPE_VALUE) {
+          stack.pop() // pop
         }
         false
       }
       case JSONToken.RIGHT_BRACKET => {
-        val top = stack.last
-        if (top == WIPE_VALUE) {
-          stack.remove(stack.length - 1)
+        if (stack.top == WIPE_VALUE) {
+          stack.pop() // pop
         }
         false
       }
       case JSONToken.COMMA => {
-        val top = stack.last
-        if (top == WIPE_VALUE) {
-          stack.remove(stack.length - 1)
-          true // ignore current ,
+        if (stack.top == WIPE_VALUE) {
+          stack.pop() // pop
+          true        // ignore current ,
         } else false
       }
       case _ => false
     }
 
-  private def updatePath(path: Stack[PathNode], stack: ListBuffer[Any], token: JSONToken) =
+  private def updatePath(path: Stack[PathNode], stack: Stack[Any], token: JSONToken) =
     token.tokenType match {
       case JSONToken.LEFT_PARAN => {
         path.push(PathNode(PathNode.ARRAY_CTX, "0"))
@@ -189,7 +230,7 @@ object JSONParser {
       case JSONToken.RIGHT_BRACKET => path.pop()
       case JSONToken.COLON => {
         val top = path.pop()
-        val key = stack.last.asInstanceOf[String]
+        val key = stack.top.asInstanceOf[String]
         path.push(PathNode(PathNode.OBJ_CTX, key))
       }
 
@@ -205,120 +246,42 @@ object JSONParser {
       case _ => {}
     }
 
-  private def reduceValue(stack: ListBuffer[Any], path: Stack[PathNode], value: Any): Any = {
+  private def reduceValue(stack: Stack[Any],
+                          sourceValue: Any,
+                          path: Stack[PathNode],
+                          parseReplacer: ParseReplacer): Any =
+    stack.push(
+      if (sourceValue.isInstanceOf[JSONToken]) sourceValue
+      else {
+        val value = parseReplacer(sourceValue, path, stack)
 
-    /**
-      * When find a ':' at the top of stack, try to pair it with previous key, `key: value`
-      */
-    val resolvedValue = if (stack.length > 0 && isTokenType(stack.last, JSONToken.COLON)) { // :
-      val top = stack.last.asInstanceOf[JSONToken]
-      stack.remove(stack.length - 1) // pop :
-      if (stack.length == 0) {
-        throw new Exception(errorAtToken(top, s"Unexpected token '${top.text}'"))
+        /**
+          * When find a ':' at the top of stack, try to pair it with previous key, `key: value`
+          */
+        if (!stack.isEmpty && isTokenType(stack.top, JSONToken.COLON)) { // :
+          val top = stack.top.asInstanceOf[JSONToken]
+          stack.pop() // pop :
+
+          if (stack.isEmpty) {
+            throw new Exception(errorAtToken(top, s"Unexpected token '${top.text}'"))
+          }
+          val key = stack.pop() // pop
+
+          if (!key.isInstanceOf[String]) {
+            throw new Exception(
+              errorAtToken(top, s"In a pair, key should be a string, but got $key")
+            )
+          }
+
+          // find a pair
+          Pair(key.asInstanceOf[String], value)
+        } else {
+          value
+        }
       }
-
-      val key = stack.last
-      stack.remove(stack.length - 1)
-
-      if (!key.isInstanceOf[String]) {
-        throw new Exception(
-          errorAtToken(top, s"In a pair, key should be a string, but got $key")
-        )
-      }
-
-      // find a pair
-      pair(key.asInstanceOf[String], value)
-    } else {
-      value
-    }
-
-    stack.append(resolvedValue)
-  }
-
-  // value to convert
-  // TODO
-  private def number(txt: String): Any =
-    if (txt.contains(".")) {
-      txt.toDouble
-    } else {
-      val value = BigDecimal(new java.math.BigDecimal(txt))
-      if (value >= -2147483648 && value <= 2147483647) {
-        value.toInt
-      } else {
-        value
-      }
-    }
-
-  private def text(txt: String): String        = JSONUtil.unescapeString(txt)
-  private def trueValue(txt: String): Boolean  = true
-  private def falseValue(txt: String): Boolean = false
-  private def nullValue(txt: String)           = null
+    )
 
   case class Pair(key: String, value: Any)
-  case class Elements(list: List[Any])
-  private def pair(key: String, value: Any): Pair = Pair(key, value)
-
-  private def objectValue(objCnt: ListBuffer[Any]): Map[String, Any] = {
-    var tupleList = List[(String, Any)]()
-
-    var i = 0
-    while (i < objCnt.length) {
-      val p = objCnt(i)
-      p match {
-        case Pair(key, value) => {
-          val pairP = p.asInstanceOf[Pair]
-          tupleList = (pairP.key, pairP.value) :: tupleList
-        }
-        case _ => {
-          throw new Exception("object can only composed by pairs.")
-        }
-      }
-
-      i += 1
-
-      if (i == objCnt.length - 1) {
-        throw new Exception(s"Unexpected token. ${objCnt}")
-      }
-
-      if (i < objCnt.length) {
-        val comma = expectToken(objCnt(i), JSONToken.COMMA)
-        i += 1
-      }
-    }
-
-    tupleList.toMap
-  }
-
-  private def arrayValue(arrCnt: ListBuffer[Any]): List[Any] = {
-    var i    = 0
-    var list = List[Any]()
-
-    while (i < arrCnt.length) {
-      val v = arrCnt(i)
-      v match {
-        case Pair(key, value) => {
-          throw new Exception("array can not contain pair.")
-        }
-        case _ => {
-          list = v :: list
-        }
-      }
-
-      i += 1
-
-      // check comma
-      if (i == arrCnt.length - 1) {
-        throw new Exception(s"Unexpected token. ${arrCnt}")
-      }
-
-      if (i < arrCnt.length) {
-        val comma = expectToken(arrCnt(i), JSONToken.COMMA)
-        i += 1
-      }
-    }
-
-    list
-  }
 
   private def isToken(v: Any): Boolean = v.isInstanceOf[JSONToken]
   private def isTokenType(v: Any, tokenType: Int): Boolean =
