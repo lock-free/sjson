@@ -56,7 +56,7 @@ class PerfTest extends org.scalatest.FunSuite {
 
   test("parse big string3") {
     println("#######[parse big string3]")
-    var list = 1 to 50000 map (
+    var list = 1 to 20000 map (
         (i) =>
           Map(
             "level3_cat"  -> i,
