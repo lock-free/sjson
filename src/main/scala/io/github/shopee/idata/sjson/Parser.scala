@@ -106,6 +106,8 @@ object JSONParser {
               val value = BigDecimal(new java.math.BigDecimal(tokenText))
               if (value >= -2147483648 && value <= 2147483647) {
                 value.toInt
+              } else if (value >= -9223372036854775808L && value <= 9223372036854775807L) {
+                value.toLong
               } else {
                 value
               }

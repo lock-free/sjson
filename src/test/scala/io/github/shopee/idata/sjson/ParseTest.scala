@@ -21,6 +21,7 @@ class ParseTest extends org.scalatest.FunSuite {
     List[Any](0, -0, 123, 0.123, 1.234, 1874658600483736L).map(testParseSym)
     assert(JSON.parse("1.234E0") == 1.234)
     assert(JSON.parse("0E-8") == 0) // big decimal
+    assert(JSON.parse("92233720368547758").isInstanceOf[Long])
   }
 
   test("parse: string") {
