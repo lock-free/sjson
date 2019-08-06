@@ -1,4 +1,4 @@
-package io.github.shopee.idata.sjson
+package io.github.free.lock.sjson
 
 object JSONUtil {
   import scala.reflect._

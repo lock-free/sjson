@@ -1,6 +1,6 @@
-package io.github.idata.json.example
+package io.github.free.lock.json.example
 
-import io.github.shopee.idata.sjson.JSON
+import io.github.free.lock.sjson.JSON
 
 case class User(name: String, age: Int)
 

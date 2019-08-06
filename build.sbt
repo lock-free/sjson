@@ -1,5 +1,5 @@
 name := "sjson"
-organization := "io.github.idata-shopee"
+organization := "io.github.lock-free"
 version := "0.2.0"
 scalaVersion := "2.12.4"
 

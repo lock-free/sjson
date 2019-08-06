@@ -2,7 +2,7 @@
 
 JSON library for Scala
 
-![travis-ci build status](https://travis-ci.com/idata-shopee/sjson.svg?branch=master)
+![travis-ci build status](https://travis-ci.com/lock-free/sjson.svg?branch=master)
 
 > Converting JSON and Scala automaticly
 
@@ -37,9 +37,9 @@ JSON library for Scala
 ## Quick example
 
 ```scala
-package io.github.idata.json.example
+package io.github.free.lock.json.example
 
-import io.github.shopee.idata.sjson.JSON
+import io.github.free.lock.sjson.JSON
 
 case class User(name: String, age: Int)
 
@@ -74,7 +74,7 @@ object Main {
 
 ```
 libraryDependencies ++= Seq(
-  "io.github.idata-shopee" %% "sjson" % "0.1.2"
+  "io.github.lock-free" %% "sjson" % "0.1.2"
 )
 ```
 
@@ -111,7 +111,7 @@ scala.collection.immutable.Map[_, _\] | object
 other class | object (field name -> field value)
 
 ```scala
-import io.github.shopee.idata.sjson.JSON
+import io.github.free.lock.sjson.JSON
 
 // case class
 case class User(name: String, age: Int)
@@ -194,7 +194,7 @@ Nothing | Null
 ## Streaming example
 
 ```scala
-import io.github.shopee.idata.sjson.{JSON, AsyncIterator}
+import io.github.free.lock.sjson.{JSON, AsyncIterator}
 
 val textIter = new AsyncIterator[Char]()
 

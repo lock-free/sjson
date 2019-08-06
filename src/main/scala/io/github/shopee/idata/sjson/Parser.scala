@@ -1,4 +1,4 @@
-package io.github.shopee.idata.sjson
+package io.github.free.lock.sjson
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Stack

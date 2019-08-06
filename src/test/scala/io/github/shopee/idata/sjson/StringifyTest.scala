@@ -1,4 +1,4 @@
-package io.github.shopee.idata.sjson
+package io.github.free.lock.sjson
 
 class stringifyTest extends org.scalatest.FunSuite {
   test("stringify: string1") {
