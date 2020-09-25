@@ -43,11 +43,15 @@ object TransitionState {
 
   val STRING_IN     = 11
   val STRING_ESCAPE = 12
+  val STRING_UNICODE_IN_0 = 13
+  val STRING_UNICODE_IN_1 = 14
+  val STRING_UNICODE_IN_2 = 15
+  val STRING_UNICODE_IN_3 = 16
 
-  val NUMBER_INTEGER          = 13
-  val NUMBER_FRAGMENT_INTEGER = 14
-  val NUMBER_SCIENCE_PART     = 15
-  val NUMBER_SCIENCE_INTEGER  = 16
+  val NUMBER_INTEGER          = 17
+  val NUMBER_FRAGMENT_INTEGER = 18
+  val NUMBER_SCIENCE_PART     = 19
+  val NUMBER_SCIENCE_INTEGER  = 20
 
   // transitions
   val NEW_TRANS                      = Transition(NEW)
@@ -63,6 +67,10 @@ object TransitionState {
   val FALSE_L_TRANS                  = Transition(FALSE_L)
   val FALSE_S_TRANS                  = Transition(FALSE_S)
   val STRING_ESCAPE_TRANS            = Transition(STRING_ESCAPE)
+  val STRING_UNICODE_IN_0_TRANS      = Transition(STRING_UNICODE_IN_0)
+  val STRING_UNICODE_IN_1_TRANS      = Transition(STRING_UNICODE_IN_1)
+  val STRING_UNICODE_IN_2_TRANS      = Transition(STRING_UNICODE_IN_2)
+  val STRING_UNICODE_IN_3_TRANS      = Transition(STRING_UNICODE_IN_3)
   val STRING_IN_TRANS                = Transition(STRING_IN)
   val NUMBER_INTEGER_TRANS           = Transition(NUMBER_INTEGER)
   val NUMBER_SCIENCE_INTEGER_TRANS   = Transition(NUMBER_SCIENCE_INTEGER)
@@ -126,6 +134,49 @@ class ParseToken(onTokenCallback: (JSONToken) => Unit) {
       }
 
       case STRING_ESCAPE => {
+        if (ch == '"' || ch == '\\' || ch == '/' || ch == 'b' || ch == 'f' || ch == 'n' || ch == 'r' || ch == 't') {
+          txtBuilder.append(ch)
+          STRING_IN_TRANS
+        } else if (ch == 'u') { // code
+          txtBuilder.append(ch)
+          STRING_UNICODE_IN_0_TRANS
+        } else { // error
+          throw new Exception(s"errored char ${ch} after escape char \\")
+        }
+      }
+
+      case STRING_UNICODE_IN_0 => { // u8
+        if (ch < '0' || ch > '9') {
+          throw new Exception(s"illegal char ${ch} in unicode string, unicode format example: \\u1000")
+        }
+
+        txtBuilder.append(ch)
+        STRING_UNICODE_IN_1_TRANS
+      }
+
+      case STRING_UNICODE_IN_1 => { // u82
+        if (ch < '0' || ch > '9') {
+          throw new Exception(s"illegal char ${ch} in unicode string, unicode format example: \\u1000")
+        }
+
+        txtBuilder.append(ch)
+        STRING_UNICODE_IN_2_TRANS
+      }
+
+      case STRING_UNICODE_IN_2 => { // u822
+        if (ch < '0' || ch > '9') {
+          throw new Exception(s"illegal char ${ch} in unicode string, unicode format example: \\u1000")
+        }
+
+        txtBuilder.append(ch)
+        STRING_UNICODE_IN_3_TRANS
+      }
+
+      case STRING_UNICODE_IN_3 => { // u8223
+        if (ch < '0' || ch > '9') {
+          throw new Exception(s"illegal char ${ch} in unicode string, unicode format example: \\u1000")
+        }
+
         txtBuilder.append(ch)
         STRING_IN_TRANS
       }

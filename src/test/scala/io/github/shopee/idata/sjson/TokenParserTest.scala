@@ -29,7 +29,15 @@ class TokenParseTest extends org.scalatest.FunSuite {
   }
 
   test("toTokens: single string") {
-    List(s"""""""", s""""hello, world"""", s""""123"""", s""""\\""""", s""""\n"""", s""""\t"""", s""""\\\\"""").map((txt) => {
+    List(s"""""""", s""""hello, world"""", s""""123"""", s""""\\""""",
+      s""""\\n"""", s""""\t"""", s""""\\\\"""", s""""\\r"""", s""""\\b"""",
+      s""""\\f"""", s""""\\/"""").map((txt) => {
+      testToToken(txt, List(JSONToken(JSONToken.STRING, txt)))
+    })
+  }
+
+  test("toTokens: unicode") {
+    List(s""""\\u1234"""").map((txt) => {
       testToToken(txt, List(JSONToken(JSONToken.STRING, txt)))
     })
   }

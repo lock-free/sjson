@@ -49,4 +49,48 @@ class ErrorJSONTest extends org.scalatest.FunSuite {
     val fun = () => {}
     assert(JSON.stringify(fun()) == "null")
   }
+
+  test("tokenParse: escape error") {
+    try {
+      JSON.parse(s""""\\a"""")
+      throw new Exception("should have error")
+    } catch {
+      case e: Exception => {
+        assert(e.getMessage.indexOf("errored char a after escape char") !== -1)
+      }
+    }
+  }
+
+  test("tokenParse: unicode error") {
+    try {
+      JSON.parse(s""""\\u"""")
+      throw new Exception("should have error")
+    } catch {
+      case e: Exception => {
+        assert(e.getMessage.indexOf("unicode format example") !== -1)
+      }
+    }
+  }
+
+  test("tokenParse: unicode error2") {
+    try {
+      JSON.parse(s""""\\u12"""")
+      throw new Exception("should have error")
+    } catch {
+      case e: Exception => {
+        assert(e.getMessage.indexOf("unicode format example") !== -1)
+      }
+    }
+  }
+
+  test("tokenParse: unicode error3") {
+    try {
+      JSON.parse(s""""\\u12b"""")
+      throw new Exception("should have error")
+    } catch {
+      case e: Exception => {
+        assert(e.getMessage.indexOf("unicode format example") !== -1)
+      }
+    }
+  }
 }
