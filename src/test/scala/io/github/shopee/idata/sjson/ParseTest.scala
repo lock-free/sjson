@@ -12,6 +12,12 @@ class ParseTest extends org.scalatest.FunSuite {
     assert(JSON.parse(JSON.stringify(v)) == v)
   }
 
+  test("parse: map unicode") {
+    val input = "[{\"\\u\":\"\\u\"}]"
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("u")
+    assert(output ==  "\\u")
+  }
+
   test("parse: true|false|null") {
     List[Any](true, false, null).map(testParseSym)
     assert(JSON.parse(JSON.stringify(None)) == null)
