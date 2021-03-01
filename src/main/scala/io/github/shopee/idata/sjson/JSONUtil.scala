@@ -126,7 +126,11 @@ object JSONUtil {
           case 'n' => '\n'
           case 'f' => '\f'
           case 'r' => '\r'
+          case 'u' => 'u'
           case _   => next
+        }
+        if(newChar == 'u') {
+          txtBuilder.append('\\')
         }
         txtBuilder.append(newChar)
         i += 2
