@@ -24,6 +24,26 @@ class ParseTest extends org.scalatest.FunSuite {
     assert(output ==  "\\uD83")
   }
 
+  test("parse: map unicode3") {
+    val input = "[{\"\\uD835\\uDC07\":\"\\uD835\\uDC07\"}]"
+    //𝐇
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\uD835\uDC07")
+    assert(output ==  "\uD835\uDC07")
+  }
+
+  test("parse: map unicode4") {
+    val input = "[{\"シリアライゼーション\":\"シリアライゼーション\"}]"
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("シリアライゼーション")
+    assert(output ==  "シリアライゼーション")
+  }
+
+  test("parse: map unicode5") {
+    val input = "[{\"\\uD835\\uDC07\":\"\\uD835\\uDC07\"}]"
+    //𝐇
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\uD835\uDC07")
+    assert(output ==  "\uD835\uDC07")
+  }
+
   test("parse: true|false|null") {
     List[Any](true, false, null).map(testParseSym)
     assert(JSON.parse(JSON.stringify(None)) == null)
