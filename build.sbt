@@ -11,5 +11,7 @@ publishTo := sonatypePublishTo.value
 libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
   // test suite
-  "org.scalatest" %% "scalatest" % "3.0.1" % Test
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+  //performance test suite
+  "com.storm-enroute" %% "scalameter" % "0.18"
 )

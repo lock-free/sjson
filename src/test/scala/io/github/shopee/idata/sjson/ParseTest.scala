@@ -19,16 +19,16 @@ class ParseTest extends org.scalatest.FunSuite {
   }
 
   test("parse: map unicode2") {
-    val input = "[{\"\\uD83\":\"\\uD83\"}]"
-    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\\uD83")
-    assert(output ==  "\\uD83")
+    val input = "[{\"\\uD835\":\"\\uD835\"}]"
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\uD835")
+    assert(output ==  "\uD835")
   }
 
   test("parse: map unicode3") {
-    val input = "[{\"\\uD835\\uDC07\":\"\\uD835\\uDC07\"}]"
-    //𝐇
-    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\uD835\uDC07")
-    assert(output ==  "\uD835\uDC07")
+    //actual string is 𝐇𝐨𝐧𝐝𝐚
+    val input = "[{\"\\uD835\\uDC07\\uD835\\uDC28\\uD835\\uDC27\\uD835\\uDC1D\\uD835\\uDC1A\":\"\\uD835\\uDC07\\uD835\\uDC28\\uD835\\uDC27\\uD835\\uDC1D\\uD835\\uDC1A\"}]"
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\uD835\uDC07\uD835\uDC28\uD835\uDC27\uD835\uDC1D\uD835\uDC1A")
+    assert(output ==  "\uD835\uDC07\uD835\uDC28\uD835\uDC27\uD835\uDC1D\uD835\uDC1A")
   }
 
   test("parse: map unicode4") {
@@ -38,9 +38,9 @@ class ParseTest extends org.scalatest.FunSuite {
   }
 
   test("parse: map unicode5") {
-    val input = "[{\"\\uD835\\uDC07\":\"\\uD835\\uDC07\"}]"
+    val input = "[{\"\\uDC\\uD835\\uDC07\\uDC\":\"\\uD835\\uDC07\"}]"
     //𝐇
-    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\uD835\uDC07")
+    val output = JSON.parse(input).asInstanceOf[List[Map[String, String]]](0)("\\uDC\uD835\uDC07\\uDC")
     assert(output ==  "\uD835\uDC07")
   }
 
